@@ -1,0 +1,17 @@
+{
+  "forwarding": {
+    "node_id": 2,
+    "forwarding_table": [
+      [
+        "M",
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ]
+    ]
+  },
+  "processing": []
+}

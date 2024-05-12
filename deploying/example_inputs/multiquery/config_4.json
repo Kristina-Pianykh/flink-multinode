@@ -1,0 +1,35 @@
+{
+  "forwarding": {
+    "node_id": 4,
+    "forwarding_table": [
+      ["A", [2], [0]],
+      ["A", [4], [0]],
+      ["K", [2], [0]],
+      ["K", [4], [0]],
+      ["SEQ(A, K)", [0], [2]],
+      ["AND(M, SEQ(A, K))", [2], [0]],
+      ["AND(M, SEQ(A, K))", [4], [0]],
+      ["Q", [2], [0]],
+      ["Q", [4], [0]],
+      ["P", [2], [0]],
+      ["P", [4], [0]]
+    ]
+  },
+  "processing": [
+    {
+      "query_length": 3,
+      "predicate_checks": 1,
+      "query_name": "AND(M, SEQ(A, K))",
+      "output_selection": ["M", "A", "K"],
+      "subqueries": ["AND(M, SEQ(A, K))"],
+      "inputs": [["SEQ(A, K)", "M"]],
+      "selectivities": [0.0037551936671995512],
+      "sequence_constraints": [[]],
+      "is_negated": 0,
+      "kleene_type": 0,
+      "context": [],
+      "id_constraints": [[]],
+      "time_window_size": 60
+    }
+  ]
+}

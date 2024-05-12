@@ -1,0 +1,2 @@
+#!/bin/bash
+pgrep -f "java --add-opens" | xargs kill

@@ -1,0 +1,66 @@
+#!/bin/bash
+
+BASE_DIR=$(realpath "$(dirname "$0")"/..)
+JAVA_DIR="$BASE_DIR/java-cep"
+PY_DIR="$BASE_DIR/python"
+DEPLOYING_DIR="$BASE_DIR/deploying"
+
+wait_until_middle_of_minute() {
+  seconds_on_clock=$(date "+%-S")
+  time_to_30s=$(( (( 30 - seconds_on_clock ) + 60 ) % 60 ))
+  sleep $time_to_30s
+}
+
+if (( $# < 2 )); then
+  echo "Usage: run INPUT_DIR N [RUN_DURATION]";
+  echo "Deploys configs and runs all nodes."
+  echo "INPUT_DIR: path to a folder with config_i.json and trace_i.json for each node i";
+  echo "N: number of nodes";
+  echo "RUN_DURATION: sleep time, i.e. expected duration (default is 10m)";
+  exit 1
+else
+  INPUT_DIR="$(realpath $1)"
+  N_NODES=$(($2))
+  RUN_DURATION_MIN=${3:-10}  # Use the third argument, or set default value
+fi;
+
+
+  #start all nodes
+  JAR="$JAVA_DIR/target/beispiel-1.0-SNAPSHOT.jar"
+
+  #runid=$(date '+%F-%H_%M_%S')
+  #runid=$DIR_NAME
+  #RESULTS_DIR="$DEPLOYING_DIR/results/$runid"
+  RESULTS_DIR=$INPUT_DIR
+  #mkdir -p "$RESULTS_DIR/inputs"
+  pgrep -f "java -jar" | xargs kill
+  for ((i=0; i<N_NODES; i++)); do
+    echo "starting $i"
+    java --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
+               -flinkconfig "$JAVA_DIR/conf" -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
+               | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
+               # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
+  done;
+
+  #check that all processes are running
+
+  echo "waiting 60 sec for all nodes to start up..."
+  sleep 60
+  wait_until_middle_of_minute
+
+  #start input srcs
+  for ((i=0; i<N_NODES; i++)); do
+		echo starting inputs on "$i"
+    # TODO: read the ports of the nodes from the config file
+		nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+		# nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" -p $((5500+i)) >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+  done
+  sleep  $((60 * RUN_DURATION_MIN))
+  mkdir "$RESULTS_DIR/mem_usage"
+  mkdir "$RESULTS_DIR/throughput"
+  # mv mem* "$RESULTS_DIR/mem_usage"
+  # mv through* "$RESULTS_DIR/throughput"
+  #wait for process termination
+  killall -9 java
+  #clean up ugly empty log files
+  #find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
