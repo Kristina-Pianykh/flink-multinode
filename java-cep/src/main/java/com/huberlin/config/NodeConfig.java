@@ -19,6 +19,28 @@ public class NodeConfig implements Serializable {
   public int nodeId;
   public NodeAddress hostAddress;
 
+  public static class Forwarding implements Serializable {
+    public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
+    public final ForwardingTable table = new ForwardingTable();
+    public ArrayList<Integer> recipient;
+  }
+
+  public static class Processing implements Serializable {
+    public String queryName;
+    public List<String> subqueries;
+    public long queryLength;
+    //    public List<String> output_selection;
+    public List<List<String>> inputs;
+    public List<Double> selectivities;
+    public List<List<List<String>>> sequenceConstraints;
+    public List<List<String>> idConstraints;
+    public long timeWindowSize;
+    //    public long predicate_checks;
+    //    public int is_negated;
+    //    public List<String> context;
+    //    public int kleene_type;
+  }
+
   private static List<String> jsonArrayToList(JSONArray jsonArray) {
     return jsonArray.toList().stream().map(Object::toString).collect(Collectors.toList());
   }
@@ -51,14 +73,16 @@ public class NodeConfig implements Serializable {
     //    System.out.println("  Kleene Type: " + p.kleene_type);
   }
 
-  public static void main(String[] args) throws IOException {
-    String filePath_local =
-        "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/example_inputs/multiquery/config_4.json";
-    String filePath_global =
-        "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json";
-    NodeConfig config = new NodeConfig();
-    config.parseJsonFile(filePath_local, filePath_global);
-  }
+  // public static void main(String[] args) throws IOException {
+  //   String filePath_local =
+  //
+  // "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/example_inputs/multiquery/config_0.json";
+  //   String filePath_global =
+  //
+  // "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json";
+  //   NodeConfig config = new NodeConfig();
+  //   config.parseJsonFile(filePath_local, filePath_global);
+  // }
 
   public void parseJsonFile(String local_config, String global_config) throws IOException {
     try {
@@ -111,6 +135,8 @@ public class NodeConfig implements Serializable {
       for (Integer sourceNode : sourceNodes)
         this.forwarding.table.addAll(eventType, sourceNode, destNodes);
     }
+    SortedSet<Integer> allDestNodes = this.forwarding.table.getAllDestinations();
+    System.out.println("All destination nodes: " + allDestNodes);
 
     this.forwarding.recipient = new ArrayList<>(this.forwarding.table.getAllDestinations());
     System.out.println("forwarding.recipient: " + this.forwarding.recipient);
@@ -197,27 +223,5 @@ public class NodeConfig implements Serializable {
       print(query);
       this.processing.add(query);
     }
-  }
-
-  public static class Forwarding implements Serializable {
-    public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
-    public final ForwardingTable table = new ForwardingTable();
-    public ArrayList<Integer> recipient;
-  }
-
-  public static class Processing implements Serializable {
-    public String queryName;
-    public List<String> subqueries;
-    public long queryLength;
-    //    public List<String> output_selection;
-    public List<List<String>> inputs;
-    public List<Double> selectivities;
-    public List<List<List<String>>> sequenceConstraints;
-    public List<List<String>> idConstraints;
-    public long timeWindowSize;
-    //    public long predicate_checks;
-    //    public int is_negated;
-    //    public List<String> context;
-    //    public int kleene_type;
   }
 }

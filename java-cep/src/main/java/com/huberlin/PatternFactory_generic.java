@@ -114,7 +114,7 @@ public class PatternFactory_generic {
       final int num_subquery) {
     final long TIME_WINDOW_SIZE_US = q.timeWindowSize * 1_000_000;
     List<List<String>> sequence_constraints = q.sequenceConstraints.get(num_subquery);
-    List<String> id_constraints = q.idConstraints.get(num_subquery);
+    // List<String> id_constraints = q.idConstraints.get(num_subquery);
     double selectivity = q.selectivities.get(num_subquery);
 
     final String patternBaseName =
@@ -153,11 +153,11 @@ public class PatternFactory_generic {
                       if (rand.nextDouble() > selectivity) return false;
 
                       // Check id constraint
-                      for (String id_constraint : id_constraints) {
-                        if (!old_event
-                            .getEventIdOf(id_constraint)
-                            .equals(new_event.getEventIdOf(id_constraint))) return false;
-                      }
+                      // for (String id_constraint : id_constraints) {
+                      //   if (!old_event
+                      //       .getEventIdOf(id_constraint)
+                      //       .equals(new_event.getEventIdOf(id_constraint))) return false;
+                      // }
 
                       // Check sequence constraint (first > last or first < last)
                       // No sequence constraints = AND
@@ -218,7 +218,7 @@ public class PatternFactory_generic {
                 long creation_time =
                     (LocalTime.now().toNanoOfDay()
                         / 1000L); // FIXME: What if it is almost midnight? Then the monsters come
-                                  // out!
+                // out!
                 ComplexEvent new_complex_event =
                     new ComplexEvent(creation_time, q.subqueries.get(num_subquery), newEventList);
                 System.out.println(new_complex_event);

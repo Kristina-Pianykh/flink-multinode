@@ -1,6 +1,8 @@
 package com.huberlin.config;
 
-public class NodeAddress {
+import java.io.Serializable;
+
+public class NodeAddress implements Serializable {
   public String hostname;
   public int port;
 

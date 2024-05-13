@@ -45,3 +45,5 @@ deploying/results/**
 !deploying/results/eval/**
 !deploying/results/final/**/inputs
 deploying/provisionMythicBeasts
+deplaying/example_inputs/multiquery/*
+java-cep/.idea/*
