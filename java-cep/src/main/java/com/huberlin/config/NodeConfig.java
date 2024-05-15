@@ -29,16 +29,16 @@ public class NodeConfig implements Serializable {
     public String queryName;
     public List<String> subqueries;
     public long queryLength;
-    //    public List<String> output_selection;
+    public List<String> output_selection;
     public List<List<String>> inputs;
     public List<Double> selectivities;
     public List<List<List<String>>> sequenceConstraints;
     public List<List<String>> idConstraints;
     public long timeWindowSize;
-    //    public long predicate_checks;
-    //    public int is_negated;
-    //    public List<String> context;
-    //    public int kleene_type;
+    public long predicate_checks;
+    public int is_negated;
+    public List<String> context;
+    public int kleene_type;
   }
 
   private static List<String> jsonArrayToList(JSONArray jsonArray) {
@@ -67,10 +67,10 @@ public class NodeConfig implements Serializable {
     System.out.println("  Sequence constraints: " + p.sequenceConstraints);
     System.out.println("  ID constraints: " + p.idConstraints);
     System.out.println("  Time window size: " + p.timeWindowSize);
-    //    System.out.println("  Predicate checks: " + p.predicate_checks);
-    //    System.out.println("  Context: " + p.context);
-    //    System.out.println("  Negated: " + p.is_negated);
-    //    System.out.println("  Kleene Type: " + p.kleene_type);
+    System.out.println("  Predicate checks: " + p.predicate_checks);
+    System.out.println("  Context: " + p.context);
+    System.out.println("  Negated: " + p.is_negated);
+    System.out.println("  Kleene Type: " + p.kleene_type);
   }
 
   // public static void main(String[] args) throws IOException {
@@ -178,11 +178,10 @@ public class NodeConfig implements Serializable {
 
       query.subqueries = jsonArrayToList(queryObject.getJSONArray("subqueries"));
       query.queryLength = queryObject.getLong("query_length");
-      //      processingInfo.output_selection =
-      //          jsonArrayToList(processing.getJSONArray("output_selection"));
-      //      processingInfo.context = jsonArrayToList(processing.getJSONArray("context"));
-      //      processingInfo.is_negated = processing.getInt("is_negated");
-      //      processingInfo.kleene_type = processing.getInt("kleene_type");
+      query.output_selection = jsonArrayToList(queryObject.getJSONArray("output_selection"));
+      query.context = jsonArrayToList(queryObject.getJSONArray("context"));
+      query.is_negated = queryObject.getInt("is_negated");
+      query.kleene_type = queryObject.getInt("kleene_type");
 
       JSONArray inputs = queryObject.getJSONArray("inputs");
       query.inputs = new ArrayList<>();
@@ -205,16 +204,14 @@ public class NodeConfig implements Serializable {
         query.sequenceConstraints.add(ConstraintPerSubquery);
       }
 
-      //            JSONArray constraints = processing.getJSONArray("id_constraints"); // TODO check
-      // for saneness
-      //            processingInfo.idConstraints = new ArrayList<>();
-      //            for (int i = 0; i < constraints.length(); i++) {
-      //
-      // processingInfo.idConstraints.add(jsonArrayToList(constraints.getJSONArray(i)));
-      //            }
+      JSONArray constraints = queryObject.getJSONArray("id_constraints"); // TODO check for saneness
+      query.idConstraints = new ArrayList<>();
+      for (i = 0; i < constraints.length(); i++) {
+        query.idConstraints.add(jsonArrayToList(constraints.getJSONArray(i)));
+      }
 
       query.timeWindowSize = queryObject.getLong("time_window_size");
-      //      processingInfo.predicate_checks = processing.getInt("predicate_checks");
+      query.predicate_checks = queryObject.getInt("predicate_checks");
 
       /*if (Event.getPrimitiveTypes(q.query_name).size() != q.query_length)
       throw new IllegalArgumentException("Query given as " + q.query_name

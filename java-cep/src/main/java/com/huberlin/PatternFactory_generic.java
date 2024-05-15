@@ -114,7 +114,7 @@ public class PatternFactory_generic {
       final int num_subquery) {
     final long TIME_WINDOW_SIZE_US = q.timeWindowSize * 1_000_000;
     List<List<String>> sequence_constraints = q.sequenceConstraints.get(num_subquery);
-    // List<String> id_constraints = q.idConstraints.get(num_subquery);
+    List<String> idConstraints = q.idConstraints.get(num_subquery);
     double selectivity = q.selectivities.get(num_subquery);
 
     final String patternBaseName =
@@ -153,11 +153,11 @@ public class PatternFactory_generic {
                       if (rand.nextDouble() > selectivity) return false;
 
                       // Check id constraint
-                      // for (String id_constraint : id_constraints) {
-                      //   if (!old_event
-                      //       .getEventIdOf(id_constraint)
-                      //       .equals(new_event.getEventIdOf(id_constraint))) return false;
-                      // }
+                      for (String idConstraint : idConstraints) {
+                        if (!old_event
+                            .getEventIdOf(idConstraint)
+                            .equals(new_event.getEventIdOf(idConstraint))) return false;
+                      }
 
                       // Check sequence constraint (first > last or first < last)
                       // No sequence constraints = AND
@@ -198,22 +198,19 @@ public class PatternFactory_generic {
                 Set<String> addedEvents = new HashSet<>();
                 ArrayList<SimpleEvent> newEventList = new ArrayList<>();
 
-                //                for (int i = 0; i <= 1; i++) { //For first (_0) and second (_1)
-                // pattern
-                //                    for (Event evt : match.get(patternBaseName + "_" + i)) {
-                //                        for (SimpleEvent contained :
-                // evt.getContainedSimpleEvents()) {
-                //                            if
-                // (q.output_selection.contains(contained.getEventType())) {
-                //                                boolean it_was_new =
-                // addedEvents.add(contained.getID()); // 'add new id to event in case of
-                // outputselection'
-                //                                if (it_was_new)
-                //                                    newEventList.add(contained);
-                //                            }
-                //                        }
-                //                    }
-                //                }
+                for (int i = 0; i <= 1; i++) { // For first (_0) and second (_1) pattern
+                  for (Event evt : match.get(patternBaseName + "_" + i)) {
+                    for (SimpleEvent contained : evt.getContainedSimpleEvents()) {
+                      if (q.output_selection.contains(contained.getEventType())) {
+                        boolean it_was_new =
+                            addedEvents.add(
+                                contained
+                                    .getID()); // 'add new id to event in case of outputselection'
+                        if (it_was_new) newEventList.add(contained);
+                      }
+                    }
+                  }
+                }
 
                 long creation_time =
                     (LocalTime.now().toNanoOfDay()
