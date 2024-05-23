@@ -24,43 +24,47 @@ else
   RUN_DURATION_MIN=${3:-10}  # Use the third argument, or set default value
 fi;
 
+#build the jar
+cd $JAVA_DIR
+mvn clean package
+cd $DEPLOYING_DIR
 
-  #start all nodes
-  JAR="$JAVA_DIR/target/beispiel-1.0-SNAPSHOT.jar"
+#start all nodes
+JAR="$JAVA_DIR/target/beispiel-1.0-SNAPSHOT.jar"
 
-  #runid=$(date '+%F-%H_%M_%S')
-  #runid=$DIR_NAME
-  #RESULTS_DIR="$DEPLOYING_DIR/results/$runid"
-  RESULTS_DIR=$INPUT_DIR
-  #mkdir -p "$RESULTS_DIR/inputs"
-  pgrep -f "java -jar" | xargs kill
-  for ((i=0; i<N_NODES; i++)); do
-    echo "starting $i"
-    java --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
-               -flinkconfig "$JAVA_DIR/conf" -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
-               | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
-               # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
-  done;
+#runid=$(date '+%F-%H_%M_%S')
+#runid=$DIR_NAME
+#RESULTS_DIR="$DEPLOYING_DIR/results/$runid"
+RESULTS_DIR=$INPUT_DIR
+#mkdir -p "$RESULTS_DIR/inputs"
+pgrep -f "java -jar" | xargs kill
+for ((i=0; i<N_NODES; i++)); do
+  echo "starting $i"
+  java --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
+             -flinkconfig "$JAVA_DIR/conf" -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
+             | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
+             # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
+done;
 
-  #check that all processes are running
+#check that all processes are running
 
-  echo "waiting 60 sec for all nodes to start up..."
-  sleep 60
-  wait_until_middle_of_minute
+echo "waiting 10 sec for all nodes to start up..."
+sleep 10
+wait_until_middle_of_minute
 
-  #start input srcs
-  for ((i=0; i<N_NODES; i++)); do
-		echo starting inputs on "$i"
-    # TODO: read the ports of the nodes from the config file
-		nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
-		# nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" -p $((5500+i)) >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
-  done
-  sleep  $((60 * RUN_DURATION_MIN))
-  mkdir "$RESULTS_DIR/mem_usage"
-  mkdir "$RESULTS_DIR/throughput"
-  # mv mem* "$RESULTS_DIR/mem_usage"
-  # mv through* "$RESULTS_DIR/throughput"
-  #wait for process termination
-  killall -9 java
-  #clean up ugly empty log files
-  #find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
+#start input srcs
+for ((i=0; i<N_NODES; i++)); do
+  echo starting inputs on "$i"
+  # TODO: read the ports of the nodes from the config file
+  nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+  # nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" -p $((5500+i)) >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+done
+sleep  $((60 * RUN_DURATION_MIN))
+mkdir "$RESULTS_DIR/mem_usage"
+mkdir "$RESULTS_DIR/throughput"
+# mv mem* "$RESULTS_DIR/mem_usage"
+# mv through* "$RESULTS_DIR/throughput"
+#wait for process termination
+killall -9 java
+#clean up ugly empty log files
+#find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
