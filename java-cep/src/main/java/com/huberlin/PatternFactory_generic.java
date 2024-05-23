@@ -129,7 +129,9 @@ public class PatternFactory_generic {
             .where(checkEventType(secondEventType)) // get second event type
             .where(
                 new IterativeCondition<Event>() { // Check timestamps, sequence and id constraints
-                  final Random rand = new Random();
+                  long seed = 12345L;
+                  final Random rand =
+                      new Random(seed); // tmp: seed random stream for reproducibility
 
                   @Override
                   public boolean filter(Event new_event, Context<Event> context) throws Exception {
