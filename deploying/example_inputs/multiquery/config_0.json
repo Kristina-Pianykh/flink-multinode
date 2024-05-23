@@ -26,7 +26,7 @@
       "output_selection": ["M", "A", "K"],
       "subqueries": ["AND(M, SEQ(A, K))"],
       "inputs": [["SEQ(A, K)", "M"]],
-      "selectivities": [0.0037551936671995512],
+      "selectivities": [0.5],
       "sequence_constraints": [[]],
       "is_negated": 0,
       "kleene_type": 0,
@@ -44,7 +44,7 @@
         ["AND(M, SEQ(A, K))", "Q"],
         ["P", "AND(M, SEQ(A, K, Q))"]
       ],
-      "selectivities": [0.004939939072166034, 0.04554398968782024],
+      "selectivities": [0.5, 0.5],
       "sequence_constraints": [
         [
           ["A", "Q"],

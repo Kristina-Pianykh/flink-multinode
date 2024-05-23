@@ -44,6 +44,9 @@ deploying/nohup.out
 deploying/results/**
 !deploying/results/eval/**
 !deploying/results/final/**/inputs
+deploying/example_inputs/multiquery/*.log
+deploying/example_inputs/multiquery/py.err
+deploying/example_inputs/multiquery/py.log
 deploying/provisionMythicBeasts
 deplaying/example_inputs/multiquery/*
 java-cep/.idea/*
