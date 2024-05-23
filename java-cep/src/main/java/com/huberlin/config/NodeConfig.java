@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NodeConfig implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(ForwardingTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NodeConfig.class);
 
   public Forwarding forwarding;
   public List<Processing> processing;
@@ -73,16 +73,16 @@ public class NodeConfig implements Serializable {
     System.out.println("  Kleene Type: " + p.kleene_type);
   }
 
-  // public static void main(String[] args) throws IOException {
-  //   String filePath_local =
+  //  public static void main(String[] args) throws IOException {
+  //    String filePath_local =
   //
   // "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/example_inputs/multiquery/config_0.json";
-  //   String filePath_global =
+  //    String filePath_global =
   //
   // "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json";
-  //   NodeConfig config = new NodeConfig();
-  //   config.parseJsonFile(filePath_local, filePath_global);
-  // }
+  //    NodeConfig config = new NodeConfig();
+  //    config.parseJsonFile(filePath_local, filePath_global);
+  //  }
 
   public void parseJsonFile(String local_config, String global_config) throws IOException {
     try {
@@ -185,8 +185,8 @@ public class NodeConfig implements Serializable {
 
       JSONArray inputs = queryObject.getJSONArray("inputs");
       query.inputs = new ArrayList<>();
-      for (i = 0; i < inputs.length(); i++) {
-        List<String> input = jsonArrayToList(inputs.getJSONArray(i));
+      for (int j = 0; j < inputs.length(); j++) {
+        List<String> input = jsonArrayToList(inputs.getJSONArray(j));
         query.inputs.add(input);
       }
 
@@ -195,9 +195,9 @@ public class NodeConfig implements Serializable {
       JSONArray sequenceConstraintsArray = queryObject.getJSONArray("sequence_constraints");
       query.sequenceConstraints = new ArrayList<>();
 
-      for (i = 0; i < sequenceConstraintsArray.length(); i++) {
+      for (int j = 0; j < sequenceConstraintsArray.length(); j++) {
         List<List<String>> ConstraintPerSubquery = new ArrayList<>();
-        JSONArray ConstraintPerSubqueryObj = sequenceConstraintsArray.getJSONArray(i);
+        JSONArray ConstraintPerSubqueryObj = sequenceConstraintsArray.getJSONArray(j);
         for (int k = 0; k < ConstraintPerSubqueryObj.length(); k++) {
           ConstraintPerSubquery.add(jsonArrayToList(ConstraintPerSubqueryObj.getJSONArray(k)));
         }
@@ -206,8 +206,8 @@ public class NodeConfig implements Serializable {
 
       JSONArray constraints = queryObject.getJSONArray("id_constraints"); // TODO check for saneness
       query.idConstraints = new ArrayList<>();
-      for (i = 0; i < constraints.length(); i++) {
-        query.idConstraints.add(jsonArrayToList(constraints.getJSONArray(i)));
+      for (int j = 0; j < constraints.length(); j++) {
+        query.idConstraints.add(jsonArrayToList(constraints.getJSONArray(j)));
       }
 
       query.timeWindowSize = queryObject.getLong("time_window_size");
