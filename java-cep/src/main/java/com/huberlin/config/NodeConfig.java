@@ -17,7 +17,43 @@ public class NodeConfig implements Serializable {
   public Forwarding forwarding;
   public List<Processing> processing;
   public int nodeId;
+  public RateMonitoringInputs rateMonitoringInputs;
   public NodeAddress hostAddress;
+
+  public static class RateMonitoringInputs implements Serializable {
+    public String multiSinkQuery;
+    public List<Integer> multiSinkNodes;
+    public int numMultiSinkNodes;
+    public String partitioningInput;
+    public List<String> queryInputs;
+    public List<String> nonPartitioningInputs;
+    public int steinerTreeSize;
+    public HashMap<String, Integer> numNodesPerQueryInput;
+
+    @Override
+    public String toString() {
+      return "RateMonitoringInputs{"
+          + "multiSinkQuery='"
+          + multiSinkQuery
+          + '\''
+          + ", multiSinkNodes="
+          + multiSinkNodes
+          + ", numMultiSinkNodes="
+          + numMultiSinkNodes
+          + ", partitioningInput='"
+          + partitioningInput
+          + '\''
+          + ", queryInputs="
+          + queryInputs
+          + ", nonPartitioningInputs="
+          + nonPartitioningInputs
+          + ", steinerTreeSize="
+          + steinerTreeSize
+          + ", numNodesPerQueryInput="
+          + numNodesPerQueryInput
+          + '}';
+    }
+  }
 
   public static class Forwarding implements Serializable {
     public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
@@ -39,6 +75,30 @@ public class NodeConfig implements Serializable {
     public int is_negated;
     public List<String> context;
     public int kleene_type;
+  }
+
+  public void parseRateMonitoringInputs(String filePath) {
+    this.rateMonitoringInputs = new NodeConfig.RateMonitoringInputs();
+    try {
+      String jsonString = new String(Files.readAllBytes(Paths.get(filePath)));
+      JSONObject jsonObject = new JSONObject(jsonString);
+      rateMonitoringInputs.multiSinkQuery = jsonObject.getString("multiSinkQuery");
+      rateMonitoringInputs.multiSinkNodes =
+          jsonArrayToInt(jsonObject.getJSONArray("multiSinkNodes"));
+      rateMonitoringInputs.numMultiSinkNodes = jsonObject.getInt("numMultiSinkNodes");
+      rateMonitoringInputs.partitioningInput = jsonObject.getString("partitioningInput");
+      rateMonitoringInputs.queryInputs = jsonArrayToList(jsonObject.getJSONArray("queryInputs"));
+      rateMonitoringInputs.nonPartitioningInputs =
+          jsonArrayToList(jsonObject.getJSONArray("nonPartitioningInputs"));
+      rateMonitoringInputs.steinerTreeSize = jsonObject.getInt("steinerTreeSize");
+      rateMonitoringInputs.numNodesPerQueryInput = new HashMap<>();
+      JSONObject numNodesPerQueryInput = jsonObject.getJSONObject("numNodesPerQueryInput");
+      for (String key : numNodesPerQueryInput.keySet()) {
+        rateMonitoringInputs.numNodesPerQueryInput.put(key, numNodesPerQueryInput.getInt(key));
+      }
+    } catch (IOException e) {
+      System.err.println("Error reading JSON file: " + e.getMessage());
+    }
   }
 
   private static List<String> jsonArrayToList(JSONArray jsonArray) {
@@ -73,18 +133,24 @@ public class NodeConfig implements Serializable {
     System.out.println("  Kleene Type: " + p.kleene_type);
   }
 
-  //  public static void main(String[] args) throws IOException {
-  //    String filePath_local =
+  // public static void main(String[] args) throws IOException {
+  //   String filePath_local =
   //
   // "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/example_inputs/multiquery/config_0.json";
-  //    String filePath_global =
+  //   String filePath_global =
   //
   // "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json";
-  //    NodeConfig config = new NodeConfig();
-  //    config.parseJsonFile(filePath_local, filePath_global);
-  //  }
+  //   String rateMonitoringInputsPath =
+  //
+  // "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs/generate_flink_inputs/plans/inequality_inputs.json";
+  //
+  //   NodeConfig config = new NodeConfig();
+  //   config.parseJsonFile(filePath_local, filePath_global, rateMonitoringInputsPath);
+  // }
 
-  public void parseJsonFile(String local_config, String global_config) throws IOException {
+  public void parseJsonFile(
+      String local_config, String global_config, String rateMonitoringInputsPath)
+      throws IOException {
     try {
       String jsonString =
           new String(Files.readAllBytes(Paths.get(local_config))); //  local config (address book)
@@ -99,6 +165,8 @@ public class NodeConfig implements Serializable {
 
       parseForwarding(local, global);
       parseProcessing(local);
+      parseRateMonitoringInputs(rateMonitoringInputsPath);
+      System.out.println("RateMonitoringInputs: " + this.rateMonitoringInputs);
 
     } catch (IOException e) {
       System.err.println("Error reading JSON file: " + e.getMessage());
