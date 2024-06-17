@@ -4,11 +4,18 @@ import logging
 import string
 from datetime import datetime, timedelta
 import pathlib
-import socket
+import socket, errno
 import time
 
 
+CLIENT_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+TARGET_NODE_ID = ""
+
+
 def main():
+    global CLIENT_SOCKET
+    global TARGET_NODE_ID
+
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
@@ -16,7 +23,9 @@ def main():
         args.input_file
         or str(pathlib.Path(__file__).parent.resolve()) + f"/trace_{args.nodeId}.csv"
     )
-    node_id = str(args.nodeId)
+    TARGET_NODE_ID = str(args.nodeId)
+    assert TARGET_NODE_ID
+
     logging.info(f"Using input file: {input_file}")
     logging.info(f"Using node id: {args.nodeId}")
     logging.info(f"Using address book: {args.address_book}")
@@ -29,17 +38,33 @@ def main():
         # logging.info(type(key))
         logging.info(f"Node {key} at {address_book[key]}")
 
-    if node_id not in address_book.keys():
+    if TARGET_NODE_ID not in address_book.keys():
         logging.error("Node not found in address book")
         exit(1)
 
-    host_port = address_book[node_id].split(":")
+    host_port = address_book[TARGET_NODE_ID].split(":")
     if len(host_port) != 2:
         logging.error("Invalid address book format")
         exit(1)
 
-    client_ip = address_book[node_id].split(":")[0]
-    client_port = int(address_book[node_id].split(":")[1])
+    client_ip = address_book[TARGET_NODE_ID].split(":")[0]
+    client_port = int(address_book[TARGET_NODE_ID].split(":")[1])
+
+    retries = 0
+    while retries <= 5:
+        if retries == 5:
+            logging.error(
+                f"Failed to connect to client {client_ip}:{client_port} after 5 attempts."
+            )
+            break
+        try:
+            print(f"Connecting to {client_ip}:{client_port}")
+            CLIENT_SOCKET.connect((str(client_ip), client_port))
+            break
+        except Exception as e:
+            logging.error(f"Failed to connect to {client_ip}:{client_port}")
+            retries += 1
+            time.sleep(1)
 
     # client_ip = args.host
     # client_port = 5500 + args.nodeId
@@ -49,41 +74,121 @@ def main():
         event_stream = f.readlines()
 
     print("read:", input_file)
-    read_and_send_event_stream(event_stream, client_ip, client_port, args.nodeId)
+    read_and_send_event_stream(event_stream, client_ip, client_port)
+    CLIENT_SOCKET.close()
 
 
 # send data with this function
-def send_event(socket, eventtype, event_id, creation_timestamp, attribute_values):
+def send_event(
+    eventtype,
+    event_id,
+    creation_timestamp,
+    attribute_values,
+    attempt_num,
+    client_ip,
+    client_port,
+):
+    global CLIENT_SOCKET
+    global TARGET_NODE_ID
+
     timestamp_string = creation_timestamp.strftime("%H:%M:%S:%f")
     message = "simple | %s | %s | %s" % (event_id, timestamp_string, eventtype)
+    if attempt_num > 5:
+        print(
+            f"Failed to send message {message} after 5 attempts to node {TARGET_NODE_ID}"
+        )
+        return
     for attr in attribute_values:
         message += "|" + attr
     message += " \n"
     print(message)
 
     try:
-        socket.send(message.encode(encoding="UTF-8"))
+        CLIENT_SOCKET.send(message.encode(encoding="UTF-8"))
         print("Message sent!")
+    except socket.error as error:
+        print("Detected remote disconnect")
+        if error.errno == errno.EPIPE:
+            # recreate the socket.
+            # CLIENT_SOCKET.close()
+            CLIENT_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            CLIENT_SOCKET.connect((str(client_ip), client_port))
+            send_event(
+                eventtype,
+                event_id,
+                creation_timestamp,
+                attribute_values,
+                attempt_num + 1,
+                client_ip,
+                client_port,
+            )
+        else:
+            print("Error - message not sent!", error)
+            # determine and handle different error
+            pass
     except Exception as error:
         print("Error - message not sent!", error)
 
 
-def send_greeting_message(socket, node_id):
-    socket.send(f"I am {node_id}\n".encode(encoding="UTF-8"))
+def send_greeting_message(attempt_num, client_ip, client_port):
+    global CLIENT_SOCKET
+    global TARGET_NODE_ID
 
+    if attempt_num > 5:
+        print(
+            f"Failed to send greeting message after 5 attempts to node {TARGET_NODE_ID}"
+        )
+        return
 
-def send_end_of_the_stream_message(socket):
     try:
-        socket.send("end-of-the-stream\n".encode(encoding="UTF-8"))
+        CLIENT_SOCKET.send(f"I am {TARGET_NODE_ID}\n".encode(encoding="UTF-8"))
+    except socket.error as error:
+        print("Detected remote disconnect")
+        if error.errno == errno.EPIPE:
+            # recreate the socket.
+            # CLIENT_SOCKET.close()
+            CLIENT_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            CLIENT_SOCKET.connect((str(client_ip), client_port))
+            send_greeting_message(attempt_num + 1, client_ip, client_port)
+        else:
+            print("Error - message not sent!", error)
+            # determine and handle different error
+            pass
+
+
+def send_end_of_the_stream_message(attempt_num, client_ip, client_port):
+    global CLIENT_SOCKET
+
+    if attempt_num > 5:
+        print(
+            f"Failed to send end-of-the-stream message after 5 attempts to node {TARGET_NODE_ID}"
+        )
+        return
+
+    try:
+        CLIENT_SOCKET.send("end-of-the-stream\n".encode(encoding="UTF-8"))
         print("end-of-the-stream!!")
+    except socket.error as error:
+        print("Detected remote disconnect")
+        if error.errno == errno.EPIPE:
+            # recreate the socket.
+            # CLIENT_SOCKET.close()
+            CLIENT_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            CLIENT_SOCKET.connect((str(client_ip), client_port))
+            send_end_of_the_stream_message(attempt_num + 1, client_ip, client_port)
+        else:
+            print("Error - message not sent!", error)
+            # determine and handle different error
+            pass
     except Exception as error:
         print("Error - message not sent!", error)
 
 
-def read_and_send_event_stream(event_stream, client_ip, client_port, node_id):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((str(client_ip), client_port))
-    send_greeting_message(client_socket, node_id)
+def read_and_send_event_stream(event_stream, client_ip, client_port):
+    global CLIENT_SOCKET
+    global TARGET_NODE_ID
+
+    send_greeting_message(attempt_num=1, client_ip=client_ip, client_port=client_port)
 
     event_type_universe = string.ascii_uppercase[0:25]
 
@@ -120,10 +225,18 @@ def read_and_send_event_stream(event_stream, client_ip, client_port, node_id):
         event_id = attributes[2]
         attribute_values = attributes[3:]
         send_event(
-            client_socket, event_type, event_id, target_timestamp, attribute_values
+            event_type,
+            event_id,
+            target_timestamp,
+            attribute_values,
+            1,
+            client_ip,
+            client_port,
         )
     # signal the end of the stream by sending a "end-of-the-stream" message
-    send_end_of_the_stream_message(client_socket)
+    send_end_of_the_stream_message(
+        attempt_num=1, client_ip=client_ip, client_port=client_port
+    )
 
 
 def start_of_next_minute(timestamp: datetime) -> datetime:
