@@ -31,7 +31,6 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.*;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -165,16 +164,18 @@ public class DataStreamJob {
     // stream of the rates of the inputs for multi-sink query (rate, timestamp)
     // IMPORTANT CHECK: only on multi-sink nodes, otherwise it's blocking the program
     // global rates R(input) are collected
-    ArrayList<DataStream<Tuple3<String, Double, Long>>> nonPartInputRatesStream =
-        new ArrayList<DataStream<Tuple3<String, Double, Long>>>();
-    DataStream<Tuple3<String, Double, Long>> PartInputRatesStream = null;
+    ArrayList<DataStream<Tuple2<Double, Long>>> nonPartInputRatesStream =
+        new ArrayList<DataStream<Tuple2<Double, Long>>>();
+    DataStream<Tuple2<Double, Long>> PartInputRatesStream = null;
+    DataStream<Event> matchStreamForMultiSinkQuery = null;
 
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
+
       for (String input : config.rateMonitoringInputs.nonPartitioningInputs) {
-        DataStream<Tuple3<String, Double, Long>> tmp =
+        DataStream<Tuple2<Double, Long>> tmp =
             inputStream
                 .filter(item -> item.f1.getEventType().equals(input))
-                .map(item -> new Tuple2<String, Event>(input, item.f1))
+                .map(e -> e.f1)
                 .map(new MonitorRate(input, config.rateMonitoringInputs));
         nonPartInputRatesStream.add(tmp);
       }
@@ -183,78 +184,82 @@ public class DataStreamJob {
               .filter(
                   item ->
                       config.rateMonitoringInputs.partitioningInput.equals(item.f1.getEventType()))
-              .map(
-                  item ->
-                      new Tuple2<String, Event>(
-                          config.rateMonitoringInputs.partitioningInput, item.f1))
+              .map(e -> e.f1)
               .map(
                   new MonitorRate(
                       config.rateMonitoringInputs.partitioningInput, config.rateMonitoringInputs));
 
-      assert (PartInputRatesStream != null);
-      assert (!nonPartInputRatesStream.isEmpty());
+      // assert (PartInputRatesStream != null);
+      // assert (!nonPartInputRatesStream.isEmpty());
     }
 
-    HashMap<String, DataStream<Event>> outputstreams_by_query =
+    List<DataStream<Event>> outputstreams_by_query =
         PatternFactory_generic.processQueries(
             config.processing,
             inputStream.map((tuple) -> tuple.f1)); // input stream w/o source information
 
     // stream of the rates of the matches of multi-sink query (rate, timestamp)
     // IMPORTANT CHECK: only on multi-sink nodes, otherwise it's blocking the program
-    if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
-        && PartInputRatesStream != null
-        && !nonPartInputRatesStream.isEmpty()) {
-      DataStream<Tuple2<String, Event>> tmp =
-          outputstreams_by_query
-              .get(config.rateMonitoringInputs.multiSinkQuery)
+    if (!outputstreams_by_query.isEmpty()
+        && config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
+
+      matchStreamForMultiSinkQuery =
+          outputstreams_by_query.stream()
+              .reduce(DataStream<Event>::union)
+              .get()
               .filter(
                   event ->
                       (!event.isSimple()
                           && event
                               .getEventType()
-                              .equals(config.rateMonitoringInputs.multiSinkQuery)))
-              .map(
-                  item ->
-                      new Tuple2<String, Event>(config.rateMonitoringInputs.multiSinkQuery, item));
-      tmp.print();
-
-      DataStream<Tuple3<String, Double, Long>> matchRatesMultiSink =
-          tmp.map(
+                              .equals(config.rateMonitoringInputs.multiSinkQuery)));
+      // for debugging only
+      matchStreamForMultiSinkQuery.filter(
+          new FilterFunction<Event>() {
+            @Override
+            public boolean filter(Event event) {
+              if (!event.isSimple()) {
+                System.out.println("Match event :" + event.getEventType());
+              }
+              return true;
+            }
+          });
+      DataStream<Tuple2<Double, Long>> matchRatesMultiSink =
+          matchStreamForMultiSinkQuery.map(
               new MonitorRate(
                   config.rateMonitoringInputs.multiSinkQuery, config.rateMonitoringInputs));
 
-      ArrayList<SingleOutputStreamOperator<Tuple3<String, Double, Long>>> latestNonPartInputRates =
+      ArrayList<SingleOutputStreamOperator<Tuple2<Double, Long>>> latestNonPartInputRates =
           new ArrayList<>();
-      for (DataStream<Tuple3<String, Double, Long>> stream : nonPartInputRatesStream) {
-        latestNonPartInputRates.add(stream.keyBy(e -> "dummy").maxBy(2)); // 2??????
-
-        stream.print();
+      for (DataStream<Tuple2<Double, Long>> stream : nonPartInputRatesStream) {
+        latestNonPartInputRates.add(stream.keyBy(e -> "dummy").maxBy(1)); // 1??????
       }
 
       // determine the tuple with the latest input rate (i.e. biggest timestamp)
-      SingleOutputStreamOperator<Tuple3<String, Double, Long>> latestPartInputRates =
-          PartInputRatesStream.keyBy(e -> "dummy").maxBy(2);
-      SingleOutputStreamOperator<Tuple3<String, Double, Long>> latestMatchRates =
-          matchRatesMultiSink.keyBy(e -> "dummy").maxBy(2);
+      SingleOutputStreamOperator<Tuple2<Double, Long>> latestPartInputRates =
+          PartInputRatesStream.keyBy(e -> "dummy").maxBy(1);
+      SingleOutputStreamOperator<Tuple2<Double, Long>> latestMatchRates =
+          matchRatesMultiSink.keyBy(e -> "dummy").maxBy(1);
 
       // perform stateful comparison of the latest input rate and the latest match rate
-      SingleOutputStreamOperator<Tuple3<String, Double, Long>> intResStream =
-          latestNonPartInputRates.get(0);
+      SingleOutputStreamOperator<Double> intResStream =
+          latestNonPartInputRates.get(0).map(e -> e.f0);
 
-      for (int i = 1; i < latestNonPartInputRates.size(); i++) {
+      SingleOutputStreamOperator<Double> connectingStream;
+      for (int i = 1; i <= latestNonPartInputRates.size(); i++) {
+
+        if (i == latestNonPartInputRates.size()) {
+          connectingStream = latestMatchRates.map(e -> e.f0);
+        } else {
+          connectingStream = latestNonPartInputRates.get(i).map(e -> e.f0);
+        }
 
         intResStream =
             intResStream
-                .connect(latestNonPartInputRates.get(i))
-                .keyBy(
-                    e -> "dummy",
-                    e -> "dummy") // cast from ConnectedStreams to KeyedConnectedStreams, the key is
+                .connect(connectingStream)
+                .keyBy(e -> "dummy", e -> "dummy")
                 .flatMap(
-                    new RichCoFlatMapFunction<
-                        Tuple3<String, Double, Long>,
-                        Tuple3<String, Double, Long>,
-                        Tuple3<String, Double, Long>>() {
+                    new RichCoFlatMapFunction<Double, Double, Double>() {
                       private transient ValueState<Double> intResult;
 
                       @Override
@@ -266,204 +271,64 @@ public class DataStreamJob {
                       }
 
                       @Override
-                      public void flatMap1(
-                          Tuple3<String, Double, Long> value,
-                          Collector<Tuple3<String, Double, Long>> out)
-                          throws Exception {
-                        // Double tmp = intResult.value();
-                        // tmp += value.f1;
-                        // intResult.update(tmp);
-                        // System.out.println("Input rate1: " + value);
-                        // out.collect(value);
-                        // System.out.println("Input rate1: " + value.f0 + ", timestamp: " +
-                        // value.f1);
-                      }
+                      public void flatMap1(Double value, Collector<Double> out) throws Exception {}
 
                       // Simulate the case when the result of comparison fires a trigger.
                       // flatMap2 only because it's performed on match events
                       // and we need to recalculate on every match
                       @Override
-                      public void flatMap2(
-                          Tuple3<String, Double, Long> value,
-                          Collector<Tuple3<String, Double, Long>> out)
-                          throws Exception {
+                      public void flatMap2(Double value, Collector<Double> out) throws Exception {
                         Double tmp = intResult.value();
-                        tmp += value.f1;
+                        tmp += value;
                         intResult.update(tmp);
+                        out.collect(tmp);
                       }
                     });
       }
 
-      // SingleOutputStreamOperator<Tuple2<Double, Long>> intResStream =
-      //     latestNonPartInputRate
-      //         .connect(latestMatchRate)
-      //         .keyBy(
-      //             e -> "dummy",
-      //             e -> "dummy") // cast from ConnectedStreams to KeyedConnectedStreams, the key
-      // is
-      //         .flatMap(
-      //             new RichCoFlatMapFunction<
-      //                 Tuple2<Double, Long>, Tuple2<Double, Long>, Tuple2<Double, Long>>() {
-      //               private transient ValueState<Tuple2<Double, Long>> latestNonPartInputRate;
-      //               private transient ValueState<Tuple2<Double, Long>> latestMatchRate;
-      //               private transient ValueState<Integer> result;
-      //
-      //               @Override
-      //               public void open(Configuration ignored) {
-      //                 latestNonPartInputRate =
-      //                     getRuntimeContext()
-      //                         .getState(
-      //                             new ValueStateDescriptor<>(
-      //                                 "latestInputRate",
-      //                                 TypeInformation.of(new TypeHint<Tuple2<Double, Long>>()
-      // {}),
-      //                                 null));
-      //                 latestMatchRate =
-      //                     getRuntimeContext()
-      //                         .getState(
-      //                             new ValueStateDescriptor<>(
-      //                                 "latestMatchRate",
-      //                                 TypeInformation.of(new TypeHint<Tuple2<Double, Long>>()
-      // {}),
-      //                                 null));
-      //                 result =
-      //                     getRuntimeContext()
-      //                         .getState(new ValueStateDescriptor<>("result", Integer.class, 0));
-      //               }
-      //
-      //               @Override
-      //               public void flatMap1(
-      //                   Tuple2<Double, Long> value, Collector<Tuple2<Double, Long>> out)
-      //                   throws Exception {
-      //                 latestNonPartInputRate.update(value);
-      //                 // System.out.println("Input rate1: " + value);
-      //                 // out.collect(value);
-      //                 System.out.println("Input rate1: " + value.f0 + ", timestamp: " +
-      // value.f1);
-      //               }
-      //
-      //               // Simulate the case when the result of comparison fires a trigger.
-      //               // flatMap2 only because it's performed on match events
-      //               // and we need to recalculate on every match
-      //               @Override
-      //               public void flatMap2(
-      //                   Tuple2<Double, Long> value, Collector<Tuple2<Double, Long>> out)
-      //                   throws Exception {
-      //                 latestMatchRate.update(value);
-      //                 Integer numNonPartInputSources =
-      //                     config.rateMonitoringInputs.numNodesPerQueryInput.entrySet().stream()
-      //                         .filter(
-      //                             e ->
-      //                                 config.rateMonitoringInputs.nonPartitioningInputs.contains(
-      //                                     e.getKey()))
-      //                         .mapToInt(e -> e.getValue())
-      //                         .sum();
-      //                 int res =
-      //                     config.rateMonitoringInputs.steinerTreeSize * numNonPartInputSources;
-      //                 if (latestNonPartInputRate.value().f0 <= latestMatchRate.value().f0) {
-      //                   out.collect(value);
-      //                   System.out.println(
-      //                       "Match rate is higher than input rate: "
-      //                           + latestMatchRate.value().f0
-      //                           + ", timestamp: "
-      //                           + latestMatchRate.value().f1
-      //                           + " >= "
-      //                           + latestNonPartInputRate.value().f0
-      //                           + ", timestamp: "
-      //                           + latestNonPartInputRate.value().f1);
-      //                   System.out.println("Trigger switch");
-      //                 } else {
-      //                   out.collect(value);
-      //                   System.out.println(
-      //                       "Match rate is lower than input rate: "
-      //                           + latestMatchRate.value().f0
-      //                           + "timestamp: "
-      //                           + latestMatchRate.value().f1
-      //                           + " < "
-      //                           + latestInputRate.value().f0
-      //                           + "timestamp: "
-      //                           + latestInputRate.value().f1);
-      //                 }
-      //               }
-      //             });
+      intResStream =
+          intResStream
+              .connect(latestPartInputRates.map(e -> e.f0))
+              .keyBy(e -> "dummy", e -> "dummy")
+              .flatMap(
+                  new RichCoFlatMapFunction<Double, Double, Double>() {
+                    private transient ValueState<Double> intResult;
 
-      // // perform stateful comparison of the latest input rate and the latest match rate
-      // latestInputRate
-      //     .connect(latestMatchRate)
-      //     .keyBy(
-      //         e -> "dummy",
-      //         e -> "dummy") // cast from ConnectedStreams to KeyedConnectedStreams, the key is
-      //     .flatMap(
-      //         new RichCoFlatMapFunction<Tuple2<Double, Long>, Tuple2<Double, Long>, String>() {
-      //           private transient ValueState<Tuple2<Double, Long>> latestInputRate;
-      //           private transient ValueState<Tuple2<Double, Long>> latestMatchRate;
-      //
-      //           @Override
-      //           public void open(Configuration ignored) {
-      //             latestInputRate =
-      //                 getRuntimeContext()
-      //                     .getState(
-      //                         new ValueStateDescriptor<>(
-      //                             "latestInputRate",
-      //                             TypeInformation.of(new TypeHint<Tuple2<Double, Long>>() {}),
-      //                             null));
-      //             latestMatchRate =
-      //                 getRuntimeContext()
-      //                     .getState(
-      //                         new ValueStateDescriptor<>(
-      //                             "latestMatchRate",
-      //                             TypeInformation.of(new TypeHint<Tuple2<Double, Long>>() {}),
-      //                             null));
-      //           }
-      //
-      //           @Override
-      //           public void flatMap1(Tuple2<Double, Long> value, Collector<String> out)
-      //               throws Exception {
-      //             latestInputRate.update(value);
-      //             // System.out.println("Input rate1: " + value);
-      //             out.collect("Input rate1: " + value.f0 + ", timestamp: " + value.f1);
-      //           }
-      //
-      //           // Simulate the case when the result of comparison fires a trigger.
-      //           // flatMap2 only because it's performed on match events
-      //           // and we need to recalculate on every match
-      //           @Override
-      //           public void flatMap2(Tuple2<Double, Long> value, Collector<String> out)
-      //               throws Exception {
-      //             latestMatchRate.update(value);
-      //             if (latestInputRate.value().f0 <= latestMatchRate.value().f0) {
-      //               out.collect(
-      //                   "Match rate is higher than input rate: "
-      //                       + latestMatchRate.value().f0
-      //                       + ", timestamp: "
-      //                       + latestMatchRate.value().f1
-      //                       + " >= "
-      //                       + latestInputRate.value().f0
-      //                       + ", timestamp: "
-      //                       + latestInputRate.value().f1);
-      //               System.out.println("Trigger switch");
-      //             } else {
-      //               out.collect(
-      //                   "Match rate is lower than input rate: "
-      //                       + latestMatchRate.value().f0
-      //                       + "timestamp: "
-      //                       + latestMatchRate.value().f1
-      //                       + " < "
-      //                       + latestInputRate.value().f0
-      //                       + "timestamp: "
-      //                       + latestInputRate.value().f1);
-      //             }
-      //             out.collect("Input rate2: " + value);
-      //           }
-      //         })
-      //     .print();
+                    @Override
+                    public void open(Configuration ignored) {
+                      intResult =
+                          getRuntimeContext()
+                              .getState(new ValueStateDescriptor<>("intResult", Double.class, 0.0));
+                    }
+
+                    @Override
+                    public void flatMap1(Double value, Collector<Double> out) throws Exception {}
+
+                    @Override
+                    public void flatMap2(Double value, Collector<Double> out) throws Exception {
+                      if (value <= intResult.value() && value > 0.0 && intResult.value() > 0.0) {
+                        System.out.println(
+                            "The rate of the partitioning input is too low for the multi-node"
+                                + " placement of the query");
+                        System.out.println(
+                            "Partitioning input rate: " + value + " <= " + intResult.value());
+                        System.out.println("Trigger switch");
+                      } else {
+                        System.out.println(
+                            "The rate of the partitioning input is high enough for the multi-node");
+                        System.out.println(
+                            "Partitioning input rate: " + value + " < " + intResult.value());
+                      }
+                      out.collect(-1.0);
+                    }
+                  });
     }
 
     DataStream<Tuple2<Integer, Event>> outputStream;
     if (outputstreams_by_query.isEmpty()) outputStream = inputStream;
     else {
       DataStream<Event> union =
-          outputstreams_by_query.values().stream().reduce(DataStream<Event>::union).get();
+          outputstreams_by_query.stream().reduce(DataStream<Event>::union).get();
       outputStream =
           union
               .map(

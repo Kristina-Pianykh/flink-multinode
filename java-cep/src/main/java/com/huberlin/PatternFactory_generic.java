@@ -58,22 +58,17 @@ public class PatternFactory_generic {
   private static AtomicInteger timestamp_counter = new AtomicInteger(0);
   private static long queryCounter = 0;
 
-  public static HashMap<String, DataStream<Event>> processQueries(
+  public static List<DataStream<Event>> processQueries(
       List<NodeConfig.Processing> allQueries, DataStream<Event> inputStream) {
-    HashMap<String, DataStream<Event>> matchingStreams = new HashMap<>();
+    List<DataStream<Event>> matchingStreams = new ArrayList<>();
     for (NodeConfig.Processing q : allQueries) {
       try {
-        matchingStreams.put(q.queryName, processQuery(q, inputStream));
-        // matchingStreams.add(processQuery(q, inputStream));
+        matchingStreams.add(processQuery(q, inputStream));
         queryCounter++; // Query counter for patterns
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
-    // System.out.println(
-    //     "\n====================== outputStreams HashMap keys: "
-    //         + matchingStreams.keySet()
-    //         + " ======================\n");
     return matchingStreams;
   }
 
