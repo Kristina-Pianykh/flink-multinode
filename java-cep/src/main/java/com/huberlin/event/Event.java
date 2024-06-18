@@ -6,7 +6,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class Event {
+public abstract class Event extends ControlEvent {
 
   private static final Logger log = LoggerFactory.getLogger(Event.class);
   boolean is_simple;
@@ -30,8 +30,6 @@ public abstract class Event {
    *
    * @return the timestamp
    */
-  public abstract long getTimestamp();
-
   public abstract long getHighestTimestamp();
 
   public abstract long getLowestTimestamp();
@@ -47,13 +45,6 @@ public abstract class Event {
 
   // REALWORLD EXPS
   public abstract SimpleEvent getEventOfType(String event_type);
-
-  /**
-   * Serialize to string
-   *
-   * @return the unique string representation of this event
-   */
-  public abstract String toString();
 
   // -------------------- Helper functions, static, stateless  --------------------
   // --- Static methods for serialization (to string) and deserialization (from string) ---

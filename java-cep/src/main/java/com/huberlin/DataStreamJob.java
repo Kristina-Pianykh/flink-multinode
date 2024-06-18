@@ -78,10 +78,7 @@ public class DataStreamJob {
     String filePath_local = cmd.getOptionValue("localconfig", "./conf/config.json"); // local config
     String filePath_global =
         cmd.getOptionValue("globalconfig", "./conf/address_book.json"); // global config
-    String rateMonitoringInputsPath =
-        cmd.getOptionValue(
-            "monitoringinputs",
-            "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs/generate_flink_inputs/plans/inequality_inputs.json"); // local config
+    String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs", ""); // local config
     NodeConfig config = new NodeConfig();
     config.parseJsonFile(filePath_local, filePath_global, rateMonitoringInputsPath);
     if (config != null) {
@@ -267,19 +264,32 @@ public class DataStreamJob {
                         intResult =
                             getRuntimeContext()
                                 .getState(
-                                    new ValueStateDescriptor<>("intResult", Double.class, 0.0));
+                                    new ValueStateDescriptor<>("intResult", Double.class, -1.0));
                       }
 
                       @Override
-                      public void flatMap1(Double value, Collector<Double> out) throws Exception {}
+                      public void flatMap1(Double value, Collector<Double> out) throws Exception {
+                        if (i == 1 && intResult.value() < 0.0) {
+                          intResult.update(value);
+                        }
+                      }
 
                       // Simulate the case when the result of comparison fires a trigger.
                       // flatMap2 only because it's performed on match events
                       // and we need to recalculate on every match
                       @Override
                       public void flatMap2(Double value, Collector<Double> out) throws Exception {
+
+                        System.out.println("Current tmp sum: " + intResult.value());
                         Double tmp = intResult.value();
+
                         tmp += value;
+                        // but how do I know if it's out of order and i have no
+                        if (i == 1 && intResult.value() < 0.0) {
+                          intResult.update(tmp);
+                        }
+
+                        System.out.println("Updated tmp sum: " + tmp);
                         intResult.update(tmp);
                         out.collect(tmp);
                       }
@@ -313,12 +323,21 @@ public class DataStreamJob {
                         System.out.println(
                             "Partitioning input rate: " + value + " <= " + intResult.value());
                         System.out.println("Trigger switch");
-                      } else {
+                      } else if (value > intResult.value()
+                          && value > 0.0
+                          && intResult.value() > 0.0) {
                         System.out.println(
                             "The rate of the partitioning input is high enough for the multi-node");
                         System.out.println(
                             "Partitioning input rate: " + value + " < " + intResult.value());
+                      } else {
+                        System.out.println(
+                            "Partitioning input rate: "
+                                + value
+                                + " | the rhs sum "
+                                + intResult.value());
                       }
+
                       out.collect(-1.0);
                     }
                   });

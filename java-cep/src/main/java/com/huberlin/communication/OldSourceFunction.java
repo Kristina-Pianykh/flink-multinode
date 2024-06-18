@@ -23,6 +23,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
   private volatile boolean isCancelled = false;
   private BlockingQueue<Tuple2<Integer, Event>> merged_event_stream;
   private final int port;
+  public static boolean multiSinkQueryEnabled = false;
 
   public OldSourceFunction(int listen_port) {
     super();
