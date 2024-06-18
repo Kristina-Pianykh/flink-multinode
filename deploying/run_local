@@ -40,23 +40,26 @@ RESULTS_DIR=$INPUT_DIR
 pgrep -f "java -jar" | xargs kill
 for ((i=0; i<N_NODES; i++)); do
   echo "starting $i"
-  java --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
+  java -ea --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
              -flinkconfig "$JAVA_DIR/conf" -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
+             -monitoringinputs "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs/generate_flink_inputs/plans/inequality_inputs.json" \
              | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
              # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
 done;
 
 #check that all processes are running
 
-echo "waiting 10 sec for all nodes to start up..."
-sleep 10
+echo "waiting 20 sec for all nodes to start up..."
+sleep 20
 wait_until_middle_of_minute
 
 #start input srcs
+rm $RESULTS_DIR/py.log
+rm $RESULTS_DIR/py.err
 for ((i=0; i<N_NODES; i++)); do
   echo starting inputs on "$i"
   # TODO: read the ports of the nodes from the config file
-  nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+  nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >>"$RESULTS_DIR/py.log" 2>>"$RESULTS_DIR/py.err" &
   # nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" -p $((5500+i)) >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
 done
 sleep  $((60 * RUN_DURATION_MIN))
