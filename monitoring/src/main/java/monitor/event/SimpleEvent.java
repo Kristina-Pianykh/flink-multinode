@@ -1,4 +1,4 @@
-package com.huberlin.event;
+package monitor.event;
 
 import java.io.Serializable;
 import java.util.ArrayList;

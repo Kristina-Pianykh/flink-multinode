@@ -1,14 +1,12 @@
-package com.huberlin.event;
+package monitor.event;
 
 import java.io.Serializable;
 import java.util.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class ControlEvent implements Serializable {
   private static final long serialVersionUID = 1L; // Add a serialVersionUID for Serializable class
 
-  private static final Logger log = LoggerFactory.getLogger(Event.class);
+  // private static final Logger log = LoggerFactory.getLogger(Event.class);
 
   // -------------------- Getter/Setter --------------------
 

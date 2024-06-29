@@ -1,0 +1,1911 @@
+RateMonitoringInputs{multiSinkQuery='SEQ(A, E, D)', multiSinkNodes=[1, 2, 0], numMultiSinkNodes=3, partitioningInput='E', queryInputs=[E, SEQ(A, D)], nonPartitioningInputs=[SEQ(A, D)], steinerTreeSize=4, numNodesPerQueryInput={E=3, SEQ(A, D)=1}}
+Monitor port: 5521
+Item: SEQ(A, D) Nodes: 1
+Item: E Nodes: 3
+Item: SEQ(A, E, D) Nodes: 3
+Monitoring thread started. Cuttoff timestamp: 1719701719019
+===========
+ New rates...
+===========
+Server started. Listening for connections on port 5521...
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 921:57:12
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 921:57:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 921:57:19
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:14:04
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:14:06
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:14:07
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:30:52
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:30:53
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:30:54
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:47:39
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:47:40
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 922:47:40
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:04:26
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:04:27
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:04:28
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:21:12
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:21:14
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:21:14
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:38:00
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:38:01
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:38:01
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:54:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:54:48
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 923:54:48
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:11:34
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:11:35
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:11:35
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:28:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:28:19
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:28:19
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:45:01
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:45:02
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 924:45:02
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:01:46
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:01:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:01:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:18:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:18:33
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:18:33
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:35:19
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:35:20
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:35:20
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:52:08
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:52:09
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 925:52:10
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:08:54
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:08:55
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:08:55
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:25:41
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:25:42
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:25:43
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:42:31
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:42:31
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:42:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:59:16
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:59:17
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 926:59:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:16:03
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:16:04
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:16:04
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:32:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:32:50
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:32:50
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:49:36
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:49:37
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 927:49:38
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:06:22
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:06:23
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:06:23
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:23:06
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:23:07
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:23:07
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:39:52
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:39:53
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:39:53
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:56:39
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:56:40
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 928:56:41
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:13:26
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:13:27
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:13:28
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:30:14
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:30:15
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:30:15
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:47:01
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:47:02
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 929:47:03
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:03:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:03:48
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:03:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:20:35
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:20:36
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:20:36
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:37:22
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:37:23
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:37:24
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:54:08
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:54:09
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 930:54:09
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:10:54
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:10:56
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:10:56
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:27:38
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:27:38
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:27:39
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:44:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:44:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 931:44:22
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:01:05
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:01:06
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:01:07
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:17:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:17:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:17:50
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:34:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:34:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:34:33
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:51:17
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:51:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 932:51:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:08:02
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:08:03
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:08:03
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:24:46
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:24:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:24:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:41:31
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:41:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:41:33
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:58:17
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:58:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 933:58:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:15:01
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:15:02
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:15:02
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:31:46
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:31:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:31:47
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:48:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:48:32
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 934:48:33
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:05:18
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:05:19
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:05:19
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:22:04
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:22:05
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:22:06
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:38:48
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:38:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:38:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:55:34
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:55:34
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 935:55:35
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:12:20
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:12:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:12:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:29:03
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:29:04
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:29:04
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:45:49
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:45:50
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 936:45:50
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 937:02:35
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 937:02:35
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 937:02:36
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
+===========
+ New rates...
+===========
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 937:19:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 937:19:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+
+Buffer size before dropping old events: 0
+BlockingEventBuffer{
+}
+Dropping events with timestamp <= 937:19:21
+Buffer size before dropping old events: 0
+Buffer size after dropping old events: 0
+
+Non-partitioning input rates:
+SEQ(A, D): 0.0
+Partitioning input rates:
+E: 0.0
+Match rates:
+SEQ(A, E, D): 0.0
+====================================
