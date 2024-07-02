@@ -76,6 +76,7 @@ public class Monitor {
   }
 
   public static void main(String[] args) {
+    HashMap<String, ArrayBlockingQueue<Double>> totalRates = new HashMap<>();
     int queueSize = 1000;
 
     CommandLine cmd = parse_cmdline_args(args);
@@ -107,14 +108,14 @@ public class Monitor {
     assert monitorPort > 0;
 
     BlockingEventBuffer buffer = new BlockingEventBuffer(queueSize);
-    new Thread(new MonitoringData(buffer, rateMonitoringInputs)).start();
+    new Thread(new MonitoringData(buffer, rateMonitoringInputs, totalRates)).start();
 
     try (ServerSocket serverSocket = new ServerSocket(monitorPort)) {
       System.out.println(
           "Server started. Listening for connections on port " + monitorPort + "...");
       while (true) {
         Socket socket = serverSocket.accept();
-        new ClientHandler(socket, buffer, rateMonitoringInputs).start();
+        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates).start();
         System.out.println("Main function, buffer size: " + buffer.size());
       }
     } catch (IOException e) {
@@ -124,15 +125,23 @@ public class Monitor {
   }
 
   private static class ClientHandler extends Thread {
+    String nodeId;
     private Socket socket;
     private BlockingEventBuffer buffer;
     private RateMonitoringInputs rateMonitoringInputs;
+    private HashMap<String, ArrayBlockingQueue<Double>> totalRates;
 
     public ClientHandler(
-        Socket socket, BlockingEventBuffer buffer, RateMonitoringInputs rateMonitoringInputs) {
+        String nodeId,
+        Socket socket,
+        BlockingEventBuffer buffer,
+        RateMonitoringInputs rateMonitoringInputs,
+        HashMap<String, ArrayBlockingQueue<Double>> totalRates) {
+      this.nodeId = nodeId;
       this.socket = socket;
       this.buffer = buffer;
       this.rateMonitoringInputs = rateMonitoringInputs;
+      this.totalRates = totalRates;
     }
 
     @Override
@@ -150,6 +159,10 @@ public class Monitor {
         while (true) {
           try {
             String message = input.readLine();
+            if (message == null) {
+              System.out.println("Client has closed the connection.");
+              break;
+            }
             System.out.println("Received message: " + message);
             event = Event.parse(message);
             System.out.println(message.contains("|"));
@@ -202,10 +215,43 @@ public class Monitor {
       } finally {
         try {
           socket.close();
+          // dumb the data in totalRates to a file
+          String filePath = "totalRates" + this.nodeId + ".csv";
+          writeHashMapToCSV(totalRates, filePath);
         } catch (IOException e) {
           e.printStackTrace();
         }
       }
+    }
+  }
+
+  public static void writeHashMapToCSV(
+      HashMap<String, ArrayBlockingQueue<Double>> map, String filePath) {
+    try (PrintWriter writer = new PrintWriter(new File(filePath))) {
+      StringBuilder sb = new StringBuilder();
+
+      // Write the header
+      sb.append("EventType,Rate\n");
+
+      // Write the data
+      for (Map.Entry<String, ArrayBlockingQueue<Double>> entry : map.entrySet()) {
+        String eventType = entry.getKey();
+        ArrayBlockingQueue<Double> rates = entry.getValue();
+        for (Double rate : rates) {
+          sb.append("\""); // Wrap the eventType in quotes (in case it contains a comma)
+          sb.append(eventType);
+          sb.append("\"");
+          sb.append(",");
+          sb.append(rate);
+          sb.append("\n");
+        }
+      }
+
+      writer.write(sb.toString());
+      System.out.println("CSV file created: " + filePath);
+
+    } catch (FileNotFoundException e) {
+      System.out.println(e.getMessage());
     }
   }
 }

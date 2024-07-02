@@ -2,6 +2,7 @@ package monitor;
 
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -9,25 +10,36 @@ public class MonitoringData implements Runnable {
   final long timeWindow = 10;
   final long timeSlide = 1;
   long cutoffTimestamp;
+  int steinerTreeSize;
   BlockingEventBuffer buffer;
   HashMap<String, Double> nonPartInputRates = new HashMap<>();
   HashMap<String, Double> partInputRates = new HashMap<>();
   HashMap<String, Double> matchRates = new HashMap<>();
   HashMap<String, Integer> nodesPerItem = new HashMap<>();
-  int steinerTreeSize;
+  HashMap<String, ArrayBlockingQueue<Double>> totalRates;
 
-  public MonitoringData(BlockingEventBuffer buffer, RateMonitoringInputs rateMonitoringInputs) {
+  public MonitoringData(
+      BlockingEventBuffer buffer,
+      RateMonitoringInputs rateMonitoringInputs,
+      HashMap<String, ArrayBlockingQueue<Double>> totalRates) {
+    this.totalRates = totalRates;
     this.cutoffTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeWindow) - 1;
     this.buffer = buffer;
+    int totalRatesCapacity = 600 * 120; // every second for 10 min
     for (String eventType : rateMonitoringInputs.nonPartitioningInputs) {
       this.nonPartInputRates.put(eventType, 0.0);
       this.nodesPerItem.put(eventType, rateMonitoringInputs.numNodesPerQueryInput.get(eventType));
+      this.totalRates.put(eventType, new ArrayBlockingQueue<>(totalRatesCapacity));
     }
     this.partInputRates.put(rateMonitoringInputs.partitioningInput, 0.0);
+    totalRates.put(
+        rateMonitoringInputs.partitioningInput, new ArrayBlockingQueue<>(totalRatesCapacity));
     this.nodesPerItem.put(
         rateMonitoringInputs.partitioningInput,
         rateMonitoringInputs.numNodesPerQueryInput.get(rateMonitoringInputs.partitioningInput));
     this.matchRates.put(rateMonitoringInputs.multiSinkQuery, 0.0);
+    totalRates.put(
+        rateMonitoringInputs.multiSinkQuery, new ArrayBlockingQueue<>(totalRatesCapacity));
     this.nodesPerItem.put(
         rateMonitoringInputs.multiSinkQuery, rateMonitoringInputs.multiSinkNodes.size());
     this.steinerTreeSize = rateMonitoringInputs.steinerTreeSize;
@@ -62,6 +74,7 @@ public class MonitoringData implements Runnable {
             .size();
     Double rate = Double.valueOf(numEvents) / Double.valueOf(timeWindow);
     Double totalRate = rate * nodesPerItem.get(eventType);
+    this.totalRates.get(eventType).add(totalRate);
     return totalRate;
   }
 

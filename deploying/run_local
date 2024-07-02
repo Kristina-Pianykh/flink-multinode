@@ -67,7 +67,9 @@ mkdir "$RESULTS_DIR/mem_usage"
 mkdir "$RESULTS_DIR/throughput"
 # mv mem* "$RESULTS_DIR/mem_usage"
 # mv through* "$RESULTS_DIR/throughput"
+
 #wait for process termination
-killall -9 java
+# killall -9 java
+ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
 #clean up ugly empty log files
 #find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
