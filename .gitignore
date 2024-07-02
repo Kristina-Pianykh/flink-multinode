@@ -50,3 +50,4 @@ deploying/example_inputs/multiquery/py.log
 deploying/provisionMythicBeasts
 deplaying/example_inputs/multiquery/*
 java-cep/.idea/*
+**/*.log

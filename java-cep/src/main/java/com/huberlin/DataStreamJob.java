@@ -122,10 +122,7 @@ public class DataStreamJob {
     if (config.rateMonitoringInputs.multiSinkNodes.contains(1) && config.nodeId == 1) {
       DataStream<Event> eventsForMonitoring = inputStream.map((tuple) -> tuple.f1);
       eventsForMonitoring.addSink(
-          new SendToMonitor(
-              config.nodeId,
-              config.hostAddress.port,
-              config.rateMonitoringInputs.multiSinkNodes.contains(1)));
+          new SendToMonitor(config.nodeId, config.hostAddress.port, config.nodeId == 1));
     }
 
     SingleOutputStreamOperator<Tuple2<Integer, Event>> monitored_stream =
@@ -184,7 +181,8 @@ public class DataStreamJob {
                   new SendToMonitor(
                       config.nodeId,
                       config.hostAddress.port,
-                      config.rateMonitoringInputs.multiSinkNodes.contains(1))));
+                      config.rateMonitoringInputs.multiSinkNodes.contains(1)
+                          && config.nodeId == 1))); // for debugging now it's only node 1
     }
 
     DataStream<Tuple2<Integer, Event>> outputStream;

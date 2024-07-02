@@ -82,8 +82,8 @@ public class Monitor {
     String addressBookPath =
         cmd.getOptionValue(
             "addressbook",
-            "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json"); // global config
-    String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs"); // local config
+            "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json");
+    String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs");
     RateMonitoringInputs rateMonitoringInputs = parseRateMonitoringInputs(rateMonitoringInputsPath);
     System.out.println(rateMonitoringInputs.toString());
 

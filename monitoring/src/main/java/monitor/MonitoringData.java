@@ -66,6 +66,11 @@ public class MonitoringData implements Runnable {
   }
 
   public void updateAllRates() {
+    System.out.println("\nBuffer size before dropping old events: " + this.buffer.size());
+    System.out.println(this.buffer.toString());
+    System.out.println(
+        "Dropping events with timestamp <= " + FormatTimestamp.format(this.cutoffTimestamp));
+    System.out.println("Buffer size before dropping old events: " + this.buffer.size());
     for (String eventType : nonPartInputRates.keySet()) {
       Double newRate = updateRates(buffer, eventType);
       nonPartInputRates.put(eventType, newRate);
@@ -78,9 +83,11 @@ public class MonitoringData implements Runnable {
       Double newRate = updateRates(buffer, eventType);
       matchRates.put(eventType, newRate);
     }
+    System.out.println("Buffer size after dropping old events: " + this.buffer.size() + "\n");
+    System.out.println(this.buffer.toString());
   }
 
-  public void compareTotalRates() {
+  public boolean inequalityHolds() {
     Double partInputRate = (Double) partInputRates.values().toArray()[0];
     Double totalPartInputRate =
         partInputRate * nodesPerItem.get(partInputRates.keySet().toArray()[0]);
@@ -93,34 +100,80 @@ public class MonitoringData implements Runnable {
     Double totalRhs = totalNonPartInputRate * this.steinerTreeSize + totalMatchRate;
     if (totalPartInputRate < totalRhs) {
       System.out.println("Partitioning input rate is too low for the multi-sink placement");
-      System.out.println("Partitioning input rate: " + totalPartInputRate);
-      System.out.println("Match rate: " + totalMatchRate);
-      System.out.println("Non-partitioning input rate: " + totalNonPartInputRate);
+      String msg =
+          "Partitioning input rate: "
+              + totalPartInputRate
+              + " < "
+              + "RHS: "
+              + totalRhs
+              + " = "
+              + totalNonPartInputRate
+              + " * "
+              + this.steinerTreeSize
+              + " + "
+              + totalMatchRate;
+      return false;
+      // System.out.println("Partitioning input rate: " + totalPartInputRate);
+      // System.out.println("Match rate: " + totalMatchRate);
+      // System.out.println("Non-partitioning input rate: " + totalNonPartInputRate);
     }
+    return true;
   }
 
   public void printRates() {
     System.out.println("Non-partitioning input rates:");
     for (String eventType : nonPartInputRates.keySet()) {
-      System.out.println(eventType + ": " + nonPartInputRates.get(eventType));
+      System.out.println(
+          eventType
+              + ": "
+              + nonPartInputRates.get(eventType)
+              + " * "
+              + nodesPerItem.get(eventType)
+              + " = "
+              + nonPartInputRates.get(eventType) * nodesPerItem.get(eventType));
     }
     System.out.println("Partitioning input rates:");
     for (String eventType : partInputRates.keySet()) {
-      System.out.println(eventType + ": " + partInputRates.get(eventType));
+      System.out.println(
+          eventType
+              + ": "
+              + partInputRates.get(eventType)
+              + " * "
+              + nodesPerItem.get(eventType)
+              + " = "
+              + partInputRates.get(eventType) * nodesPerItem.get(eventType));
     }
     System.out.println("Match rates:");
     for (String eventType : matchRates.keySet()) {
-      System.out.println(eventType + ": " + matchRates.get(eventType));
+      System.out.println(
+          eventType
+              + ": "
+              + matchRates.get(eventType)
+              + " * "
+              + nodesPerItem.get(eventType)
+              + " = "
+              + matchRates.get(eventType) * nodesPerItem.get(eventType));
     }
   }
 
   public void run() {
     System.out.println("Monitoring thread started. Cuttoff timestamp: " + cutoffTimestamp);
+    int inequalityViolationsInARow = 0;
     while (true) {
       System.out.println("===========\n New rates...\n===========");
       updateAllRates();
       printRates();
-      compareTotalRates();
+      if (!inequalityHolds()) {
+        if (inequalityViolationsInARow >= 3) {
+          System.out.println("=========== TRIGGER SWITCH ===========");
+          break;
+        }
+        inequalityViolationsInARow++;
+        System.out.println(
+            "Inequality does not hold. Violations in a row: " + inequalityViolationsInARow);
+      } else {
+        inequalityViolationsInARow = 0;
+      }
       System.out.println("====================================");
       try {
         Thread.sleep(TimeUnit.SECONDS.toMillis(1)); // TODO: use timeSlide in real prog

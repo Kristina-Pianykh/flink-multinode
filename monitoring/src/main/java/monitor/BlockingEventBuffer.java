@@ -18,11 +18,11 @@ public class BlockingEventBuffer extends ArrayBlockingQueue<Event> {
   }
 
   public void clearOutdatedEvents(long cutoffTimestamp) {
-    System.out.println("\nBuffer size before dropping old events: " + this.size());
-    System.out.println(this.toString());
-    System.out.println(
-        "Dropping events with timestamp <= " + FormatTimestamp.format(cutoffTimestamp));
-    System.out.println("Buffer size before dropping old events: " + this.size());
+    // System.out.println("\nBuffer size before dropping old events: " + this.size());
+    // System.out.println(this.toString());
+    // System.out.println(
+    //     "Dropping events with timestamp <= " + FormatTimestamp.format(cutoffTimestamp));
+    // System.out.println("Buffer size before dropping old events: " + this.size());
     // this.removeIf(e -> e.getTimestamp() <= cutoffTimestamp);
     for (Event e : this) {
       System.out.println(
@@ -36,7 +36,7 @@ public class BlockingEventBuffer extends ArrayBlockingQueue<Event> {
         this.remove(e);
       }
     }
-    System.out.println("Buffer size after dropping old events: " + this.size() + "\n");
+    // System.out.println("Buffer size after dropping old events: " + this.size() + "\n");
   }
 
   public String toString() {
