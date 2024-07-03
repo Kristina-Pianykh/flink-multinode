@@ -1,6 +1,12 @@
 import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from datetime import timedelta
+
+
+def seconds_to_hhmmss(seconds):
+    return str(timedelta(seconds=seconds))
 
 
 def plot_event_frequencies(csv_files):
@@ -16,23 +22,16 @@ def plot_event_frequencies(csv_files):
         # Read the CSV file into a DataFrame
         df = pd.read_csv(
             csv_file,
-            header=None,
-            names=["EventType", "Rate"],
-            dtype={"EventType": str, "Rate": str},
+            header=0,
+            names=["EventType", "Timestamp", "Rate"],
+            dtype={"EventType": str, "Timestamp": float, "Rate": float},
         )
-
-        # Convert the Rate column to numeric, setting errors='coerce' will turn non-numeric values into NaN
-        df["Rate"] = pd.to_numeric(df["Rate"], errors="coerce")
 
         # Drop any rows where Rate is NaN
         df = df.dropna(subset=["Rate"])
 
-        # Transform data to plot each event type as a line over time
-        # Create a column for time based on the index
-        df["Time"] = df.groupby("EventType").cumcount()
-
-        # Pivot the DataFrame to have EventType as columns and Time as the index
-        pivot_df = df.pivot(index="Time", columns="EventType", values="Rate")
+        # Pivot the DataFrame to have EventType as columns and Timestamp as the index
+        pivot_df = df.pivot(index="Timestamp", columns="EventType", values="Rate")
 
         # Plot each event type as a line over time
         for event_type in pivot_df.columns:
@@ -42,10 +41,15 @@ def plot_event_frequencies(csv_files):
 
         # Customize the subplot
         axs[i].set_title(f"Event Rates Over Time - {csv_file}")
-        axs[i].set_xlabel("Time (seconds)")
+        axs[i].set_xlabel("Time (hh:mm:ss)")
         axs[i].set_ylabel("Rate")
         axs[i].legend(title="Event Types")
         axs[i].grid(True)
+
+        # Set the x-axis labels to hh:mm:ss
+        axs[i].xaxis.set_major_formatter(
+            ticker.FuncFormatter(lambda x, _: seconds_to_hhmmss(x))
+        )
 
     plt.tight_layout()
     plt.show()
