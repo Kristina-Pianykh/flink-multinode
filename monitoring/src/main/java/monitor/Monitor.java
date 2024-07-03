@@ -76,7 +76,7 @@ public class Monitor {
   }
 
   public static void main(String[] args) {
-    HashMap<String, ArrayBlockingQueue<Double>> totalRates = new HashMap<>();
+    HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates = new HashMap<>();
     int queueSize = 1000;
 
     CommandLine cmd = parse_cmdline_args(args);
@@ -129,14 +129,16 @@ public class Monitor {
     private Socket socket;
     private BlockingEventBuffer buffer;
     private RateMonitoringInputs rateMonitoringInputs;
-    private HashMap<String, ArrayBlockingQueue<Double>> totalRates;
+    private HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
+
+    // private HashMap<String, ArrayBlockingQueue<Double>> totalRates;
 
     public ClientHandler(
         String nodeId,
         Socket socket,
         BlockingEventBuffer buffer,
         RateMonitoringInputs rateMonitoringInputs,
-        HashMap<String, ArrayBlockingQueue<Double>> totalRates) {
+        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates) {
       this.nodeId = nodeId;
       this.socket = socket;
       this.buffer = buffer;
@@ -226,7 +228,7 @@ public class Monitor {
   }
 
   public static void writeHashMapToCSV(
-      HashMap<String, ArrayBlockingQueue<Double>> map, String filePath) {
+      HashMap<String, ArrayBlockingQueue<TimestampAndRate>> map, String filePath) {
     try (PrintWriter writer = new PrintWriter(new File(filePath))) {
       StringBuilder sb = new StringBuilder();
 
@@ -234,15 +236,17 @@ public class Monitor {
       sb.append("EventType,Rate\n");
 
       // Write the data
-      for (Map.Entry<String, ArrayBlockingQueue<Double>> entry : map.entrySet()) {
+      for (Map.Entry<String, ArrayBlockingQueue<TimestampAndRate>> entry : map.entrySet()) {
         String eventType = entry.getKey();
-        ArrayBlockingQueue<Double> rates = entry.getValue();
-        for (Double rate : rates) {
+        ArrayBlockingQueue<TimestampAndRate> timestampsAndRates = entry.getValue();
+        for (TimestampAndRate timestampAndRate : timestampsAndRates) {
           sb.append("\""); // Wrap the eventType in quotes (in case it contains a comma)
           sb.append(eventType);
           sb.append("\"");
           sb.append(",");
-          sb.append(rate);
+          sb.append(timestampAndRate.timestamp);
+          sb.append(",");
+          sb.append(timestampAndRate.rate);
           sb.append("\n");
         }
       }

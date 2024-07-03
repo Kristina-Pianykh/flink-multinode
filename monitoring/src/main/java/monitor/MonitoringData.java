@@ -16,12 +16,12 @@ public class MonitoringData implements Runnable {
   HashMap<String, Double> partInputRates = new HashMap<>();
   HashMap<String, Double> matchRates = new HashMap<>();
   HashMap<String, Integer> nodesPerItem = new HashMap<>();
-  HashMap<String, ArrayBlockingQueue<Double>> totalRates;
+  HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
 
   public MonitoringData(
       BlockingEventBuffer buffer,
       RateMonitoringInputs rateMonitoringInputs,
-      HashMap<String, ArrayBlockingQueue<Double>> totalRates) {
+      HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates) {
     this.totalRates = totalRates;
     this.cutoffTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeWindow) - 1;
     this.buffer = buffer;
@@ -63,6 +63,18 @@ public class MonitoringData implements Runnable {
     return hoursInMicroseconds + minutesInMicroseconds + secondsInMicroseconds + nanoInMicroseconds;
   }
 
+  public long getCurrentTimeInSeconds() {
+    // Get the current time
+    LocalTime now = LocalTime.now();
+
+    // Calculate the total seconds since the start of the day
+    long hoursInSeconds = now.getHour() * 60L * 60L;
+    long minutesInSeconds = now.getMinute() * 60L;
+    long seconds = now.getSecond();
+
+    return hoursInSeconds + minutesInSeconds + seconds;
+  }
+
   public Double updateRates(BlockingEventBuffer buffer, String eventType) {
     this.cutoffTimestamp =
         getCurrentTimeInMicroseconds() - TimeUnit.SECONDS.toMicros(timeWindow) - 1;
@@ -74,7 +86,8 @@ public class MonitoringData implements Runnable {
             .size();
     Double rate = Double.valueOf(numEvents) / Double.valueOf(timeWindow);
     Double totalRate = rate * nodesPerItem.get(eventType);
-    this.totalRates.get(eventType).add(totalRate);
+
+    this.totalRates.get(eventType).add(new TimestampAndRate(getCurrentTimeInSeconds(), totalRate));
     return totalRate;
   }
 
@@ -179,7 +192,7 @@ public class MonitoringData implements Runnable {
       if (!inequalityHolds()) {
         if (inequalityViolationsInARow >= 3) {
           System.out.println("=========== TRIGGER SWITCH ===========");
-          break;
+          // break;
         }
         inequalityViolationsInARow++;
         System.out.println(
@@ -191,6 +204,7 @@ public class MonitoringData implements Runnable {
       try {
         Thread.sleep(TimeUnit.SECONDS.toMillis(1)); // TODO: use timeSlide in real prog
       } catch (InterruptedException e) {
+        System.out.println("Monitoring thread interrupted");
         e.printStackTrace();
       }
     }
