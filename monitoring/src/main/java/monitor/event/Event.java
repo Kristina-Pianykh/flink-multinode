@@ -1,14 +1,12 @@
-package com.huberlin.event;
+package monitor.event;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class Event extends ControlEvent {
 
-  private static final Logger log = LoggerFactory.getLogger(Event.class);
+  // private static final Logger log = LoggerFactory.getLogger(Event.class);
   boolean is_simple;
   public String eventType;
 
@@ -30,6 +28,8 @@ public abstract class Event extends ControlEvent {
    *
    * @return the timestamp
    */
+  public abstract long getTimestamp();
+
   public abstract long getHighestTimestamp();
 
   public abstract long getLowestTimestamp();
@@ -40,8 +40,6 @@ public abstract class Event extends ControlEvent {
   public abstract String getEventIdOf(String event_type);
 
   public abstract Long getTimestampOf(String event_type);
-
-  public abstract long getTimestamp();
 
   public abstract String getID();
 

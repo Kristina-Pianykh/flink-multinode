@@ -40,17 +40,17 @@ RESULTS_DIR=$INPUT_DIR
 pgrep -f "java -jar" | xargs kill
 for ((i=0; i<N_NODES; i++)); do
   echo "starting $i"
-  java -ea --add-opens java.base/java.lang=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
+  java -ea --add-opens java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED -jar "$JAR" -localconfig "$INPUT_DIR/config_$i.json" \
              -flinkconfig "$JAVA_DIR/conf" -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
-             -monitoringinputs "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs/generate_flink_inputs/plans/inequality_inputs.json" \
+             -monitoringinputs "$INPUT_DIR/inequality_inputs.json" \
              | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
              # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
 done;
 
 #check that all processes are running
 
-echo "waiting 20 sec for all nodes to start up..."
-sleep 20
+echo "waiting 10 sec for all nodes to start up..."
+sleep 10
 wait_until_middle_of_minute
 
 #start input srcs
@@ -67,7 +67,9 @@ mkdir "$RESULTS_DIR/mem_usage"
 mkdir "$RESULTS_DIR/throughput"
 # mv mem* "$RESULTS_DIR/mem_usage"
 # mv through* "$RESULTS_DIR/throughput"
+
 #wait for process termination
-killall -9 java
+# killall -9 java
+ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
 #clean up ugly empty log files
 #find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
