@@ -19,6 +19,7 @@
 package com.huberlin;
 
 import com.huberlin.communication.OldSourceFunction;
+import com.huberlin.communication.SendToMonitor;
 import com.huberlin.communication.TCPEventSender;
 import com.huberlin.config.NodeConfig;
 import com.huberlin.event.ComplexEvent;
@@ -28,8 +29,6 @@ import org.apache.commons.cli.*;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.*;
 import org.apache.flink.core.fs.FileSystem;
@@ -37,8 +36,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +111,23 @@ public class DataStreamJob {
     DataStream<Tuple2<Integer, Event>> inputStream =
         env.addSource(new OldSourceFunction(config.hostAddress.port));
 
+    // important check if node is one of the multi-sink nodes
+    // TODO: change this to general
+    // if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
+    //   DataStream<Event> eventsForMonitoring = inputStream.map((tuple) -> tuple.f1);
+    //   eventsForMonitoring.addSink(new SendToMonitor(config.hostAddress.port));
+    // }
+
+    // TODO: change this to general// for debuggin now it's only node 0
+    if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
+      DataStream<Event> eventsForMonitoring = inputStream.map((tuple) -> tuple.f1);
+      eventsForMonitoring.addSink(
+          new SendToMonitor(
+              config.nodeId,
+              config.hostAddress.port,
+              config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)));
+    }
+
     SingleOutputStreamOperator<Tuple2<Integer, Event>> monitored_stream =
         inputStream
             .map(
@@ -158,189 +172,20 @@ public class DataStreamJob {
                 })
             .uid("metrics");
 
-    // stream of the rates of the inputs for multi-sink query (rate, timestamp)
-    // IMPORTANT CHECK: only on multi-sink nodes, otherwise it's blocking the program
-    // global rates R(input) are collected
-    ArrayList<DataStream<Tuple2<Double, Long>>> nonPartInputRatesStream =
-        new ArrayList<DataStream<Tuple2<Double, Long>>>();
-    DataStream<Tuple2<Double, Long>> PartInputRatesStream = null;
-    DataStream<Event> matchStreamForMultiSinkQuery = null;
-
-    if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
-
-      for (String input : config.rateMonitoringInputs.nonPartitioningInputs) {
-        DataStream<Tuple2<Double, Long>> tmp =
-            inputStream
-                .filter(item -> item.f1.getEventType().equals(input))
-                .map(e -> e.f1)
-                .map(new MonitorRate(input, config.rateMonitoringInputs));
-        nonPartInputRatesStream.add(tmp);
-      }
-      PartInputRatesStream =
-          inputStream
-              .filter(
-                  item ->
-                      config.rateMonitoringInputs.partitioningInput.equals(item.f1.getEventType()))
-              .map(e -> e.f1)
-              .map(
-                  new MonitorRate(
-                      config.rateMonitoringInputs.partitioningInput, config.rateMonitoringInputs));
-
-      // assert (PartInputRatesStream != null);
-      // assert (!nonPartInputRatesStream.isEmpty());
-    }
-
     List<DataStream<Event>> outputstreams_by_query =
         PatternFactory_generic.processQueries(
             config.processing,
             inputStream.map((tuple) -> tuple.f1)); // input stream w/o source information
 
-    // stream of the rates of the matches of multi-sink query (rate, timestamp)
-    // IMPORTANT CHECK: only on multi-sink nodes, otherwise it's blocking the program
-    if (!outputstreams_by_query.isEmpty()
-        && config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
-
-      matchStreamForMultiSinkQuery =
-          outputstreams_by_query.stream()
-              .reduce(DataStream<Event>::union)
-              .get()
-              .filter(
-                  event ->
-                      (!event.isSimple()
-                          && event
-                              .getEventType()
-                              .equals(config.rateMonitoringInputs.multiSinkQuery)));
-      // for debugging only
-      matchStreamForMultiSinkQuery.filter(
-          new FilterFunction<Event>() {
-            @Override
-            public boolean filter(Event event) {
-              if (!event.isSimple()) {
-                System.out.println("Match event :" + event.getEventType());
-              }
-              return true;
-            }
-          });
-      DataStream<Tuple2<Double, Long>> matchRatesMultiSink =
-          matchStreamForMultiSinkQuery.map(
-              new MonitorRate(
-                  config.rateMonitoringInputs.multiSinkQuery, config.rateMonitoringInputs));
-
-      ArrayList<SingleOutputStreamOperator<Tuple2<Double, Long>>> latestNonPartInputRates =
-          new ArrayList<>();
-      for (DataStream<Tuple2<Double, Long>> stream : nonPartInputRatesStream) {
-        latestNonPartInputRates.add(stream.keyBy(e -> "dummy").maxBy(1)); // 1??????
-      }
-
-      // determine the tuple with the latest input rate (i.e. biggest timestamp)
-      SingleOutputStreamOperator<Tuple2<Double, Long>> latestPartInputRates =
-          PartInputRatesStream.keyBy(e -> "dummy").maxBy(1);
-      SingleOutputStreamOperator<Tuple2<Double, Long>> latestMatchRates =
-          matchRatesMultiSink.keyBy(e -> "dummy").maxBy(1);
-
-      // perform stateful comparison of the latest input rate and the latest match rate
-      SingleOutputStreamOperator<Double> intResStream =
-          latestNonPartInputRates.get(0).map(e -> e.f0);
-
-      SingleOutputStreamOperator<Double> connectingStream;
-      for (int i = 1; i <= latestNonPartInputRates.size(); i++) {
-
-        if (i == latestNonPartInputRates.size()) {
-          connectingStream = latestMatchRates.map(e -> e.f0);
-        } else {
-          connectingStream = latestNonPartInputRates.get(i).map(e -> e.f0);
-        }
-
-        intResStream =
-            intResStream
-                .connect(connectingStream)
-                .keyBy(e -> "dummy", e -> "dummy")
-                .flatMap(
-                    new RichCoFlatMapFunction<Double, Double, Double>() {
-                      private transient ValueState<Double> intResult;
-
-                      @Override
-                      public void open(Configuration ignored) {
-                        intResult =
-                            getRuntimeContext()
-                                .getState(
-                                    new ValueStateDescriptor<>("intResult", Double.class, -1.0));
-                      }
-
-                      @Override
-                      public void flatMap1(Double value, Collector<Double> out) throws Exception {
-                        if (i == 1 && intResult.value() < 0.0) {
-                          intResult.update(value);
-                        }
-                      }
-
-                      // Simulate the case when the result of comparison fires a trigger.
-                      // flatMap2 only because it's performed on match events
-                      // and we need to recalculate on every match
-                      @Override
-                      public void flatMap2(Double value, Collector<Double> out) throws Exception {
-
-                        System.out.println("Current tmp sum: " + intResult.value());
-                        Double tmp = intResult.value();
-
-                        tmp += value;
-                        // but how do I know if it's out of order and i have no
-                        if (i == 1 && intResult.value() < 0.0) {
-                          intResult.update(tmp);
-                        }
-
-                        System.out.println("Updated tmp sum: " + tmp);
-                        intResult.update(tmp);
-                        out.collect(tmp);
-                      }
-                    });
-      }
-
-      intResStream =
-          intResStream
-              .connect(latestPartInputRates.map(e -> e.f0))
-              .keyBy(e -> "dummy", e -> "dummy")
-              .flatMap(
-                  new RichCoFlatMapFunction<Double, Double, Double>() {
-                    private transient ValueState<Double> intResult;
-
-                    @Override
-                    public void open(Configuration ignored) {
-                      intResult =
-                          getRuntimeContext()
-                              .getState(new ValueStateDescriptor<>("intResult", Double.class, 0.0));
-                    }
-
-                    @Override
-                    public void flatMap1(Double value, Collector<Double> out) throws Exception {}
-
-                    @Override
-                    public void flatMap2(Double value, Collector<Double> out) throws Exception {
-                      if (value <= intResult.value() && value > 0.0 && intResult.value() > 0.0) {
-                        System.out.println(
-                            "The rate of the partitioning input is too low for the multi-node"
-                                + " placement of the query");
-                        System.out.println(
-                            "Partitioning input rate: " + value + " <= " + intResult.value());
-                        System.out.println("Trigger switch");
-                      } else if (value > intResult.value()
-                          && value > 0.0
-                          && intResult.value() > 0.0) {
-                        System.out.println(
-                            "The rate of the partitioning input is high enough for the multi-node");
-                        System.out.println(
-                            "Partitioning input rate: " + value + " < " + intResult.value());
-                      } else {
-                        System.out.println(
-                            "Partitioning input rate: "
-                                + value
-                                + " | the rhs sum "
-                                + intResult.value());
-                      }
-
-                      out.collect(-1.0);
-                    }
-                  });
+    if (!outputstreams_by_query.isEmpty()) {
+      outputstreams_by_query.forEach(
+          stream ->
+              stream.addSink(
+                  new SendToMonitor(
+                      config.nodeId,
+                      config.hostAddress.port,
+                      config.rateMonitoringInputs.multiSinkNodes.contains(
+                          config.nodeId)))); // for debugging now it's only node 1
     }
 
     DataStream<Tuple2<Integer, Event>> outputStream;
