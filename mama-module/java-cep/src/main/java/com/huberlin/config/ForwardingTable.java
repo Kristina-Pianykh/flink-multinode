@@ -36,6 +36,22 @@ public class ForwardingTable implements Serializable {
     return this.table.get(event_type).get(source_node_id).addAll(destinations);
   }
 
+  void addUpdatedAll(ArrayList<HashMap<String, Integer>> rules) {
+    for (HashMap<String, Integer> rule : rules) {
+      for (Map.Entry<String, Integer> entry : rule.entrySet()) {
+        String event_type = entry.getKey();
+        Integer dstNode = entry.getValue();
+        this.table.putIfAbsent(event_type, new HashMap<>());
+        this.table
+            .get(event_type)
+            .putIfAbsent(
+                null,
+                new TreeSet<>()); // null because we don't care about where the event comes from
+        this.table.get(event_type).get(null).add(dstNode);
+      }
+    }
+  }
+
   /**
    * Get all node ids mentioned in table
    *
@@ -64,6 +80,9 @@ public class ForwardingTable implements Serializable {
   }
 
   public void print() {
+    if (this.table.isEmpty()) {
+      System.out.println("Forwarding table is empty.");
+    }
     for (String eventType : this.table.keySet()) {
       HashMap<Integer, TreeSet<Integer>> map = this.table.get(eventType);
       for (Integer source_id : map.keySet()) {

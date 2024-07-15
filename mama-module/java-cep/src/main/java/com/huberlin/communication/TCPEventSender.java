@@ -41,6 +41,8 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
   public void invoke(Tuple2<Integer, Event> tuple_of_source_node_id_and_event, Context ignored) {
     Integer source_node_id = tuple_of_source_node_id_and_event.f0;
     Event event = tuple_of_source_node_id_and_event.f1;
+
+    fwd_table.print();
     for (Integer node_id : fwd_table.lookup(event.getEventType(), source_node_id)) {
       TCPAddressString dst = address_book.get(node_id);
       send_to(event.toString(), dst);

@@ -1,4 +1,5 @@
 package com.huberlin.event;
+
 // package com.huberlin;
 
 import java.time.LocalTime;
@@ -7,7 +8,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class Event extends ControlEvent {
+public abstract class Event extends Message {
 
   private static final Logger log = LoggerFactory.getLogger(Event.class);
   boolean is_simple;
