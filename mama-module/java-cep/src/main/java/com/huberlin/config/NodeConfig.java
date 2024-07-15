@@ -57,7 +57,8 @@ public class NodeConfig implements Serializable {
 
   public static class Forwarding implements Serializable {
     public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
-    public final ForwardingTable table = new ForwardingTable();
+    public ForwardingTable table = new ForwardingTable();
+    public ForwardingTable updatedTable = new ForwardingTable();
     public ArrayList<Integer> recipient;
   }
 
@@ -149,7 +150,10 @@ public class NodeConfig implements Serializable {
   // }
 
   public void parseJsonFile(
-      String local_config, String global_config, String rateMonitoringInputsPath)
+      String local_config,
+      String global_config,
+      String rateMonitoringInputsPath,
+      String updatedForwardingRulesPath)
       throws IOException {
     try {
       String jsonString =
@@ -158,12 +162,14 @@ public class NodeConfig implements Serializable {
       String jsonString2 =
           new String(Files.readAllBytes(Paths.get(global_config))); // global config (address book)
       JSONObject global = new JSONObject(jsonString2);
+      String jsonString3 = new String(Files.readAllBytes(Paths.get(updatedForwardingRulesPath)));
+      JSONObject updatedRules = new JSONObject(jsonString3);
 
       //            NodeConfig nodeConfig = new NodeConfig();
       this.nodeId = local.getJSONObject("forwarding").getInt("node_id");
       System.out.println("node_id: " + this.nodeId);
 
-      parseForwarding(local, global);
+      parseForwarding(local, global, updatedRules);
       parseProcessing(local);
       parseRateMonitoringInputs(rateMonitoringInputsPath);
       System.out.println("RateMonitoringInputs: " + this.rateMonitoringInputs);
@@ -174,7 +180,7 @@ public class NodeConfig implements Serializable {
     }
   }
 
-  private void parseForwarding(JSONObject local, JSONObject address_book) {
+  private void parseForwarding(JSONObject local, JSONObject address_book, JSONObject updatedRules) {
     JSONObject forwardingObject = local.getJSONObject("forwarding");
     this.forwarding = new NodeConfig.Forwarding();
 
@@ -203,6 +209,26 @@ public class NodeConfig implements Serializable {
       for (Integer sourceNode : sourceNodes)
         this.forwarding.table.addAll(eventType, sourceNode, destNodes);
     }
+
+    if (!updatedRules.keySet().contains(Integer.toString(this.nodeId))) {
+      System.out.println("==================================================");
+      System.out.println("No updated rules for node " + this.nodeId);
+      System.out.println("==================================================");
+      this.forwarding.updatedTable = this.forwarding.table;
+    } else {
+      JSONArray rulesTmp = updatedRules.getJSONArray(Integer.toString(this.nodeId));
+      ArrayList<HashMap<String, Integer>> rules =
+          rulesTmp.toList().stream()
+              .map(rule -> (HashMap<String, Integer>) rule)
+              .collect(Collectors.toCollection(ArrayList::new));
+      this.forwarding.updatedTable.addUpdatedAll(rules);
+      System.out.println("==================updated table==================");
+      this.forwarding.updatedTable.print();
+      System.out.println("==================================================");
+    }
+
+    // this.forwarding.table.addAll(eventType, sourceNode, destNodes);
+
     SortedSet<Integer> allDestNodes = this.forwarding.table.getAllDestinations();
     System.out.println("All destination nodes: " + allDestNodes);
 

@@ -37,6 +37,8 @@ public class DataStreamJob {
             "monitoringinputs",
             true,
             "Path to the directory with the inputs for computing the inequality"));
+    cmdline_opts.addOption(
+        new Option("updatedrules", true, "Path to the file with the updated forwarding rules"));
     final CommandLineParser parser = new DefaultParser();
     try {
       return parser.parse(cmdline_opts, args);
@@ -58,10 +60,14 @@ public class DataStreamJob {
     String filePath_global =
         cmd.getOptionValue("globalconfig", "./conf/address_book.json"); // global config
     String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs", null); // local config
+    String updatedForwardingRulesPath = cmd.getOptionValue("updatedrules", null); // local config
     assert rateMonitoringInputsPath != null : "Path for rate monitoring inputs is not set";
+    assert updatedForwardingRulesPath != null
+        : "Path for the file with the updated forwarding rules is not set";
 
     NodeConfig config = new NodeConfig();
-    config.parseJsonFile(filePath_local, filePath_global, rateMonitoringInputsPath);
+    config.parseJsonFile(
+        filePath_local, filePath_global, rateMonitoringInputsPath, updatedForwardingRulesPath);
     if (config != null) {
       System.out.println("Parsed JSON successfully");
       // You can now access the data structure's attributes, e.g., data.forwarding.send_mode or
@@ -96,13 +102,6 @@ public class DataStreamJob {
         env.addSource(new OldSourceFunction(config.hostAddress.port));
 
     // important check if node is one of the multi-sink nodes
-    // TODO: change this to general
-    // if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
-    //   DataStream<Event> eventsForMonitoring = inputStream.map((tuple) -> tuple.f1);
-    //   eventsForMonitoring.addSink(new SendToMonitor(config.hostAddress.port));
-    // }
-
-    // TODO: change this to general// for debuggin now it's only node 0
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
       DataStream<Event> eventsForMonitoring = inputStream.map((tuple) -> tuple.f1);
       eventsForMonitoring.addSink(
