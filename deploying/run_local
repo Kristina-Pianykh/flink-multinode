@@ -78,6 +78,7 @@ for ((i=0; i<N_NODES; i++)); do
             -localconfig "$INPUT_DIR/config_$i.json" \
             -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
             -monitoringinputs "$INPUT_DIR/inequality_inputs.json" \
+            -updatedrules "$INPUT_DIR/updated_forwared_rules.json" \
              | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
              # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
 done;
