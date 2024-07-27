@@ -4,38 +4,67 @@ package com.huberlin.event;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class ControlEvent extends Message implements Serializable {
+public class ControlEvent extends Message implements Serializable {
   private static final long serialVersionUID = 1L; // Add a serialVersionUID for Serializable class
   private static final Logger log = LoggerFactory.getLogger(Event.class);
   public final boolean control = true;
-  public final long shiftTimestamp;
+  public Long driftTimestamp = null;
+  public Long shiftTimestamp = null;
 
-  public ControlEvent(long shiftTimestamp) {
+  public ControlEvent(Long driftTimestamp, Long shiftTimestamp) {
+    this.driftTimestamp = driftTimestamp;
     this.shiftTimestamp = shiftTimestamp;
   }
 
-  // -------------------- Getter/Setter --------------------
+  public long getTimestamp() {
+    return 0L;
+  }
 
-  // set-methods should not be provided (effectively immutable object)
-  public abstract long getTimestamp();
+  public String toString() {
+    StringBuilder eventString = new StringBuilder("control");
+    String driftTimestampString =
+        this.driftTimestamp == null ? "null" : formatTimestamp(this.driftTimestamp);
+    String shiftTimestampString =
+        this.shiftTimestamp == null ? "null" : formatTimestamp(this.shiftTimestamp);
+    eventString.append(" | ").append(driftTimestampString);
+    eventString.append(" | ").append(shiftTimestampString);
+    return eventString.toString();
+  }
 
-  /**
-   * Serialize to string
-   *
-   * @return the unique string representation of this event
-   */
-  public abstract String toString();
+  public static ControlEvent parse(String message) {
+    Long driftTimestamp;
+    Long shiftTimestamp;
 
-  // -------------------- Helper functions, static, stateless  --------------------
-  // --- Static methods for serialization (to string) and deserialization (from string) ---
+    String[] receivedParts = message.split("\\|");
+    if (!receivedParts[0].trim().contains("control")) {
+      System.out.println("Control message does not start with 'control'!");
+      return null;
+    }
 
-  /**
-   * Convert a string representation of an event to Event form
-   *
-   * @param received A event's unique string representation.
-   * @return The event
-   */
+    ArrayList<String> attributeList = new ArrayList<>();
+    for (int i = 1; i < receivedParts.length; i++) {
+      attributeList.add(receivedParts[i].trim());
+    }
+
+    assert attributeList.size() >= 2;
+
+    if (attributeList.get(0).equals("null")) {
+      driftTimestamp = null;
+    } else {
+      driftTimestamp = parseTimestamp(attributeList.get(0));
+    }
+
+    if (attributeList.get(1).equals("null")) {
+      shiftTimestamp = null;
+    } else {
+      shiftTimestamp = parseTimestamp(attributeList.get(1));
+    }
+
+    ControlEvent controlEvent = new ControlEvent(driftTimestamp, shiftTimestamp);
+    return controlEvent;
+  }
 }

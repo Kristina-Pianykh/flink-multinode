@@ -1,5 +1,6 @@
 package com.huberlin.javacep.communication;
 
+import com.huberlin.event.ControlEvent;
 import com.huberlin.event.Event;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -120,6 +121,11 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           input.close();
           socket.close(); // sockets connections are not reused
           return;
+        } else if (message.startsWith("control")) {
+          ControlEvent controlEvent = ControlEvent.parse(message);
+          assert controlEvent != null : "Parsing control event " + message + "failed";
+          System.out.println("Received control event: " + controlEvent.toString());
+
         } else if (client_node_id == null) {
           if (!message.startsWith("I am ")) {
             log.error(
