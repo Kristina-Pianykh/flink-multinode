@@ -79,6 +79,9 @@ public class Monitor {
   public static void main(String[] args) {
     HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates = new HashMap<>();
     int queueSize = 1000;
+    int coordinatorPort = 6668;
+    Integer monitorPort = null;
+    Integer nodePort = null;
 
     CommandLine cmd = parse_cmdline_args(args);
     String addressBookPath =
@@ -98,18 +101,21 @@ public class Monitor {
       System.exit(0);
     }
 
-    int monitorPort = -1;
     try {
-      monitorPort = JsonParser.getMonitorPort(addressBookPath, nodeId);
+      nodePort = JsonParser.getNodePort(addressBookPath, nodeId);
+      assert nodePort != null : "Failed to parse node port from address book.";
+      monitorPort = nodePort + 20;
+      System.out.println("Node port: " + monitorPort);
       System.out.println("Monitor port: " + monitorPort);
     } catch (IOException e) {
       e.printStackTrace();
       System.exit(-1);
     }
-    assert monitorPort > 0;
 
     BlockingEventBuffer buffer = new BlockingEventBuffer(queueSize);
-    new Thread(new MonitoringData(buffer, rateMonitoringInputs, totalRates)).start();
+    new Thread(
+            new MonitoringData(buffer, rateMonitoringInputs, totalRates, nodePort, coordinatorPort))
+        .start();
 
     try (ServerSocket serverSocket = new ServerSocket(monitorPort)) {
       System.out.println(

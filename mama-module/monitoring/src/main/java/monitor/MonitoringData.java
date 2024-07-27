@@ -1,6 +1,10 @@
 // package monitor;
 package com.huberlin.monitor;
 
+import com.huberlin.event.ControlEvent;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -18,11 +22,15 @@ public class MonitoringData implements Runnable {
   HashMap<String, Double> matchRates = new HashMap<>();
   HashMap<String, Integer> nodesPerItem = new HashMap<>();
   HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
+  int nodePort;
+  int coordinatorPort;
 
   public MonitoringData(
       BlockingEventBuffer buffer,
       RateMonitoringInputs rateMonitoringInputs,
-      HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates) {
+      HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates,
+      int nodePort,
+      int coordinatorPort) {
     this.totalRates = totalRates;
     this.cutoffTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeWindow) - 1;
     this.buffer = buffer;
@@ -49,6 +57,8 @@ public class MonitoringData implements Runnable {
         (k, v) -> {
           System.out.println("Item: " + k + " Nodes: " + v);
         });
+    this.nodePort = nodePort;
+    this.coordinatorPort = coordinatorPort;
   }
 
   public long getCurrentTimeInMicroseconds() {
@@ -183,6 +193,27 @@ public class MonitoringData implements Runnable {
     }
   }
 
+  // TODO: wrap into a thread
+  public void sendControlEvent(ControlEvent controlEvent, int port) {
+    try {
+      Socket socket = new Socket("localhost", port);
+      PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+      writer.println(controlEvent.toString());
+      writer.println("end-of-the-stream\n");
+      writer.flush();
+      writer.close();
+      socket.close();
+      System.out.println("Sent control event: " + controlEvent.toString() + " to port " + port);
+    } catch (IOException e) {
+      System.out.println(
+          "Failure to establish connection from monitor to port "
+              + port
+              + " for control event. Error: "
+              + e);
+      e.printStackTrace();
+    }
+  }
+
   public void run() {
     System.out.println("Monitoring thread started. Cuttoff timestamp: " + cutoffTimestamp);
     int inequalityViolationsInARow = 0;
@@ -193,6 +224,11 @@ public class MonitoringData implements Runnable {
       if (!inequalityHolds()) {
         if (inequalityViolationsInARow >= 3) {
           System.out.println("=========== TRIGGER SWITCH ===========");
+          long t = getCurrentTimeInMicroseconds();
+          System.out.println("driftTimestamp = " + t);
+          ControlEvent controlEvent = new ControlEvent(t, null);
+          sendControlEvent(controlEvent, nodePort);
+          sendControlEvent(controlEvent, coordinatorPort);
           // break;
         }
         inequalityViolationsInARow++;

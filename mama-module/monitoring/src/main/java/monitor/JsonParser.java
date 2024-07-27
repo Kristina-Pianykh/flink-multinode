@@ -12,11 +12,11 @@ import org.json.JSONObject;
 
 public class JsonParser {
 
-  public static Integer getMonitorPort(String path, String nodeId) throws IOException {
+  public static Integer getNodePort(String path, String nodeId) throws IOException {
     String jsonString =
         new String(Files.readAllBytes(Paths.get(path))); // global config (address book)
     JSONObject obj = new JSONObject(jsonString);
     Integer port = Integer.parseInt(obj.getString(nodeId).split(":")[1]);
-    return port + 20;
+    return port;
   }
 }
