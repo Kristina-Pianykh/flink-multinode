@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 BASE_DIR=$(realpath "$(dirname "$0")"/..)
 JAVA_BASE_DIR="$BASE_DIR/mama-module"
 JAVA_PROJ_DIR="$BASE_DIR/mama-module/java-cep"
 PY_DIR="$BASE_DIR/python"
 DEPLOYING_DIR="$BASE_DIR/deploying"
+MONITORING_DIR="$BASE_DIR/mama-module/monitoring"
 INFLATED_RATES=0
 
 wait_until_middle_of_minute() {
@@ -52,7 +53,7 @@ fi;
 
 if (( INFLATED_RATES == 1 )); then
   echo "Sending inflated rates"
-  TRACE_DIR="$INPUT_DIR/trace_inflated"
+  TRACE_DIR="$INPUT_DIR/inflated_trace"
 else
   echo "Sending regular rates"
   TRACE_DIR="$INPUT_DIR/trace"
@@ -67,7 +68,10 @@ JAR="$JAVA_PROJ_DIR/target/java-cep-1.0-SNAPSHOT.jar"
 
 RESULTS_DIR=$INPUT_DIR
 ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
-# pgrep -f "java -jar" | xargs kill
+
+# start monitors
+# $MONITORING_DIR/start_monitoring.sh
+
 for ((i=0; i<N_NODES; i++)); do
   echo "starting $i"
   java -ea --add-opens java.base/java.lang=ALL-UNNAMED \
