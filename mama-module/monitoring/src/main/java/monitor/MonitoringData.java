@@ -2,11 +2,12 @@
 package com.huberlin.monitor;
 
 import com.huberlin.event.ControlEvent;
+import com.huberlin.sharedconfig.RateMonitoringInputs;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.time.LocalTime;
-import java.util.HashMap;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -226,7 +227,7 @@ public class MonitoringData implements Runnable {
           System.out.println("=========== TRIGGER SWITCH ===========");
           long t = getCurrentTimeInMicroseconds();
           System.out.println("driftTimestamp = " + t);
-          ControlEvent controlEvent = new ControlEvent(t, null);
+          ControlEvent controlEvent = new ControlEvent(Optional.of(t), Optional.empty());
           sendControlEvent(controlEvent, nodePort);
           sendControlEvent(controlEvent, coordinatorPort);
           // break;

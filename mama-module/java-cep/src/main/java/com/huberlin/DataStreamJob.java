@@ -76,6 +76,19 @@ public class DataStreamJob {
       log.error("Failed to parse JSON");
       System.exit(1);
     }
+
+    String partInput = config.rateMonitoringInputs.partitioningInput;
+    System.out.println(
+        "Destinations for partitioning input in the updated forwarding table: "
+            + "\n    "
+            + config.forwarding.updatedTable.lookupUpdated(partInput));
+    // for (int i = 0; i <= 5; i++) {
+    //   SortedSet<Integer> dest = config.forwarding.updatedTable.lookup(partInput, i);
+    //   System.out.println("Partionionin input " + partInput + " goes to " + dest);
+    // }
+    // SortedSet<Integer> dest = config.forwarding.updatedTable.lookup(partInput, null);
+    // System.out.println("Partionionin input " + partInput + " goes to " + dest);
+
     final int REST_PORT = 8081 + config.nodeId * 2;
     Configuration flinkConfig =
         GlobalConfiguration.loadConfiguration(cmd.getOptionValue("flinkconfig", "conf"));
@@ -99,7 +112,13 @@ public class DataStreamJob {
     // for the match
 
     DataStream<Tuple2<Integer, Event>> inputStream =
-        env.addSource(new OldSourceFunction(config.hostAddress.port));
+        env.addSource(
+            new OldSourceFunction(
+                config.rateMonitoringInputs,
+                config.forwarding.addressBook,
+                config.forwarding.updatedTable,
+                config.nodeId,
+                config.hostAddress.port));
 
     // important check if node is one of the multi-sink nodes
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {

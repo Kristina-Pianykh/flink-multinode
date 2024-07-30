@@ -3,6 +3,7 @@ package com.huberlin.coordinator;
 import com.huberlin.event.ControlEvent;
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class Coordinator {
   public static void main(String[] args) {
@@ -45,9 +46,9 @@ public class Coordinator {
             socket.close();
             return;
           } else if (message.startsWith("control")) {
-            ControlEvent controlEvent = ControlEvent.parse(message);
-            assert controlEvent != null : "Parsing control event " + message + "failed";
-            System.out.println("Received control event: " + controlEvent.toString());
+            Optional<ControlEvent> controlEvent = ControlEvent.parse(message);
+            assert controlEvent.isPresent() : "Parsing control event " + message + "failed";
+            System.out.println("Received control event: " + controlEvent.get().toString());
           }
         }
       } catch (IOException e) {
