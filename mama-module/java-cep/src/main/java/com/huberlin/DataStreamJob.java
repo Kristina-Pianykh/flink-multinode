@@ -115,7 +115,7 @@ public class DataStreamJob {
         env.addSource(
             new OldSourceFunction(
                 config.rateMonitoringInputs,
-                config.forwarding.addressBook,
+                config.forwarding.addressBookTCP,
                 config.forwarding.updatedTable,
                 config.nodeId,
                 config.hostAddress.port));
@@ -233,7 +233,7 @@ public class DataStreamJob {
 
     filteredOutputStream.addSink(
         new TCPEventSender(
-            config.forwarding.addressBook,
+            config.forwarding.addressBookTCP,
             config.forwarding.table,
             config
                 .nodeId)); // The cast expresses the fact that a TCPEventSender is a SinkFunction<?

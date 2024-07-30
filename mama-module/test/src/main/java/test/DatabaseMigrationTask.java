@@ -2,24 +2,22 @@ package com.huberlin.test;
 
 import java.util.*;
 
-public class DatabaseMigrationTask extends TimerTask {
+public class DatabaseMigrationTask implements Runnable {
   public ArrayList<String> oldDatabase;
   public ArrayList<String> newDatabase;
-  public Timer timer;
 
-  public DatabaseMigrationTask(
-      ArrayList<String> oldDatabase, ArrayList<String> newDatabase, Timer timer) {
+  public DatabaseMigrationTask(ArrayList<String> oldDatabase, ArrayList<String> newDatabase) {
     this.oldDatabase = oldDatabase;
     this.newDatabase = newDatabase;
     System.out.println("DatabaseMigrationTask created");
-    this.timer = timer;
   }
 
   @Override
   public void run() {
     newDatabase.addAll(oldDatabase);
+    System.out.println("Database migrated");
     oldDatabase.clear();
-    timer.cancel();
-    timer.purge();
+    System.out.println("oldDatabase : " + oldDatabase.toString());
+    System.out.println("newDatabase : " + newDatabase.toString());
   }
 }
