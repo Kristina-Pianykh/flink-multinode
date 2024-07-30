@@ -1,5 +1,6 @@
 package com.huberlin.javacep.config;
 
+import com.huberlin.sharedconfig.RateMonitoringInputs;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
@@ -19,41 +20,6 @@ public class NodeConfig implements Serializable {
   public int nodeId;
   public RateMonitoringInputs rateMonitoringInputs;
   public NodeAddress hostAddress;
-
-  public static class RateMonitoringInputs implements Serializable {
-    public String multiSinkQuery;
-    public List<Integer> multiSinkNodes;
-    public int numMultiSinkNodes;
-    public String partitioningInput;
-    public List<String> queryInputs;
-    public List<String> nonPartitioningInputs;
-    public int steinerTreeSize;
-    public HashMap<String, Integer> numNodesPerQueryInput;
-
-    @Override
-    public String toString() {
-      return "RateMonitoringInputs{"
-          + "multiSinkQuery='"
-          + multiSinkQuery
-          + '\''
-          + ", multiSinkNodes="
-          + multiSinkNodes
-          + ", numMultiSinkNodes="
-          + numMultiSinkNodes
-          + ", partitioningInput='"
-          + partitioningInput
-          + '\''
-          + ", queryInputs="
-          + queryInputs
-          + ", nonPartitioningInputs="
-          + nonPartitioningInputs
-          + ", steinerTreeSize="
-          + steinerTreeSize
-          + ", numNodesPerQueryInput="
-          + numNodesPerQueryInput
-          + '}';
-    }
-  }
 
   public static class Forwarding implements Serializable {
     public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
@@ -76,30 +42,6 @@ public class NodeConfig implements Serializable {
     public int is_negated;
     public List<String> context;
     public int kleene_type;
-  }
-
-  public void parseRateMonitoringInputs(String filePath) {
-    this.rateMonitoringInputs = new NodeConfig.RateMonitoringInputs();
-    try {
-      String jsonString = new String(Files.readAllBytes(Paths.get(filePath)));
-      JSONObject jsonObject = new JSONObject(jsonString);
-      rateMonitoringInputs.multiSinkQuery = jsonObject.getString("multiSinkQuery");
-      rateMonitoringInputs.multiSinkNodes =
-          jsonArrayToInt(jsonObject.getJSONArray("multiSinkNodes"));
-      rateMonitoringInputs.numMultiSinkNodes = jsonObject.getInt("numMultiSinkNodes");
-      rateMonitoringInputs.partitioningInput = jsonObject.getString("partitioningInput");
-      rateMonitoringInputs.queryInputs = jsonArrayToList(jsonObject.getJSONArray("queryInputs"));
-      rateMonitoringInputs.nonPartitioningInputs =
-          jsonArrayToList(jsonObject.getJSONArray("nonPartitioningInputs"));
-      rateMonitoringInputs.steinerTreeSize = jsonObject.getInt("steinerTreeSize");
-      rateMonitoringInputs.numNodesPerQueryInput = new HashMap<>();
-      JSONObject numNodesPerQueryInput = jsonObject.getJSONObject("numNodesPerQueryInput");
-      for (String key : numNodesPerQueryInput.keySet()) {
-        rateMonitoringInputs.numNodesPerQueryInput.put(key, numNodesPerQueryInput.getInt(key));
-      }
-    } catch (IOException e) {
-      System.err.println("Error reading JSON file: " + e.getMessage());
-    }
   }
 
   private static List<String> jsonArrayToList(JSONArray jsonArray) {
@@ -171,7 +113,9 @@ public class NodeConfig implements Serializable {
 
       parseForwarding(local, global, updatedRules);
       parseProcessing(local);
-      parseRateMonitoringInputs(rateMonitoringInputsPath);
+      this.rateMonitoringInputs =
+          RateMonitoringInputs.parseRateMonitoringInputs(rateMonitoringInputsPath);
+      assert this.rateMonitoringInputs != null : "Failed to parse rateMonitoringInputs";
       System.out.println("RateMonitoringInputs: " + this.rateMonitoringInputs);
 
     } catch (IOException e) {
@@ -213,6 +157,7 @@ public class NodeConfig implements Serializable {
     if (!updatedRules.keySet().contains(Integer.toString(this.nodeId))) {
       System.out.println("==================================================");
       System.out.println("No updated rules for node " + this.nodeId);
+      this.forwarding.table.print();
       System.out.println("==================================================");
       this.forwarding.updatedTable = this.forwarding.table;
     } else {

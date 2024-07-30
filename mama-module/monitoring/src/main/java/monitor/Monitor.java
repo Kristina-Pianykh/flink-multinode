@@ -2,19 +2,15 @@
 package com.huberlin.monitor;
 
 import com.huberlin.event.Event;
+import com.huberlin.sharedconfig.RateMonitoringInputs;
 import java.io.*;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.commons.cli.*;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 public class Monitor {
 
@@ -40,42 +36,6 @@ public class Monitor {
     return null;
   }
 
-  public static RateMonitoringInputs parseRateMonitoringInputs(String filePath) {
-    RateMonitoringInputs rateMonitoringInputs = new RateMonitoringInputs();
-    try {
-      String jsonString = new String(Files.readAllBytes(Paths.get(filePath)));
-      JSONObject jsonObject = new JSONObject(jsonString);
-      rateMonitoringInputs.multiSinkQuery = jsonObject.getString("multiSinkQuery");
-      rateMonitoringInputs.multiSinkNodes =
-          jsonArrayToInt(jsonObject.getJSONArray("multiSinkNodes"));
-      rateMonitoringInputs.numMultiSinkNodes = jsonObject.getInt("numMultiSinkNodes");
-      rateMonitoringInputs.partitioningInput = jsonObject.getString("partitioningInput");
-      rateMonitoringInputs.queryInputs = jsonArrayToList(jsonObject.getJSONArray("queryInputs"));
-      rateMonitoringInputs.nonPartitioningInputs =
-          jsonArrayToList(jsonObject.getJSONArray("nonPartitioningInputs"));
-      rateMonitoringInputs.steinerTreeSize = jsonObject.getInt("steinerTreeSize");
-      rateMonitoringInputs.numNodesPerQueryInput = new HashMap<>();
-      JSONObject numNodesPerQueryInput = jsonObject.getJSONObject("numNodesPerQueryInput");
-      for (String key : numNodesPerQueryInput.keySet()) {
-        rateMonitoringInputs.numNodesPerQueryInput.put(key, numNodesPerQueryInput.getInt(key));
-      }
-    } catch (IOException e) {
-      System.err.println("Error reading JSON file: " + e.getMessage());
-    }
-    return rateMonitoringInputs;
-  }
-
-  private static List<String> jsonArrayToList(JSONArray jsonArray) {
-    return jsonArray.toList().stream().map(Object::toString).collect(Collectors.toList());
-  }
-
-  private static List<Integer> jsonArrayToInt(JSONArray jsonArray) {
-    return jsonArray.toList().stream()
-        .map(Object::toString)
-        .map(Integer::parseInt)
-        .collect(Collectors.toList());
-  }
-
   public static void main(String[] args) {
     HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates = new HashMap<>();
     int queueSize = 1000;
@@ -89,7 +49,8 @@ public class Monitor {
             "addressbook",
             "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json");
     String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs");
-    RateMonitoringInputs rateMonitoringInputs = parseRateMonitoringInputs(rateMonitoringInputsPath);
+    RateMonitoringInputs rateMonitoringInputs =
+        RateMonitoringInputs.parseRateMonitoringInputs(rateMonitoringInputsPath);
     System.out.println(rateMonitoringInputs.toString());
 
     String nodeId = cmd.getOptionValue("node");

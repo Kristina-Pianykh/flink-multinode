@@ -25,6 +25,31 @@ public class ForwardingTable implements Serializable {
     return new TreeSet<>(result);
   }
 
+  // lookup destinctions for the updated forwarding table (containes null as src node)
+  // the input arg is supposed to be the partitioning event type
+  public SortedSet<Integer> lookupUpdated(String eventType) {
+    SortedSet<Integer> dest = new TreeSet<>();
+
+    HashMap<Integer, TreeSet<Integer>> srcDestMap =
+        this.table.getOrDefault(eventType, new HashMap<>());
+    if (srcDestMap.isEmpty()) return dest;
+
+    System.out.println(srcDestMap);
+    for (SortedSet<Integer> set : srcDestMap.values()) {
+      dest.addAll(set);
+    }
+    // dest.addAll(this.table.getOrDefault(eventType, new HashMap<>()).get(null));
+    System.out.println(dest);
+
+    if (dest == null) {
+      log.warn(
+          "No entry in forwarding table for event type "
+              + eventType
+              + ". Returning empty destination set.");
+    }
+    return dest;
+  }
+
   /**
    * Extend the list of destinations for a given tuple of source and event type
    *

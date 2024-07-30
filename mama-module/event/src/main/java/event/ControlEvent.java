@@ -12,10 +12,10 @@ public class ControlEvent extends Message implements Serializable {
   private static final long serialVersionUID = 1L; // Add a serialVersionUID for Serializable class
   private static final Logger log = LoggerFactory.getLogger(Event.class);
   public final boolean control = true;
-  public Long driftTimestamp = null;
-  public Long shiftTimestamp = null;
+  public Optional<Long> driftTimestamp;
+  public Optional<Long> shiftTimestamp;
 
-  public ControlEvent(Long driftTimestamp, Long shiftTimestamp) {
+  public ControlEvent(Optional<Long> driftTimestamp, Optional<Long> shiftTimestamp) {
     this.driftTimestamp = driftTimestamp;
     this.shiftTimestamp = shiftTimestamp;
   }
@@ -27,22 +27,22 @@ public class ControlEvent extends Message implements Serializable {
   public String toString() {
     StringBuilder eventString = new StringBuilder("control");
     String driftTimestampString =
-        this.driftTimestamp == null ? "null" : formatTimestamp(this.driftTimestamp);
+        this.driftTimestamp.isPresent() ? formatTimestamp(this.driftTimestamp.get()) : "null";
     String shiftTimestampString =
-        this.shiftTimestamp == null ? "null" : formatTimestamp(this.shiftTimestamp);
+        this.shiftTimestamp.isPresent() ? formatTimestamp(this.shiftTimestamp.get()) : "null";
     eventString.append(" | ").append(driftTimestampString);
     eventString.append(" | ").append(shiftTimestampString);
     return eventString.toString();
   }
 
-  public static ControlEvent parse(String message) {
-    Long driftTimestamp;
-    Long shiftTimestamp;
+  public static Optional<ControlEvent> parse(String message) {
+    Optional<Long> driftTimestamp;
+    Optional<Long> shiftTimestamp;
 
     String[] receivedParts = message.split("\\|");
     if (!receivedParts[0].trim().contains("control")) {
       System.out.println("Control message does not start with 'control'!");
-      return null;
+      return Optional.empty();
     }
 
     ArrayList<String> attributeList = new ArrayList<>();
@@ -52,19 +52,13 @@ public class ControlEvent extends Message implements Serializable {
 
     assert attributeList.size() >= 2;
 
-    if (attributeList.get(0).equals("null")) {
-      driftTimestamp = null;
-    } else {
-      driftTimestamp = parseTimestamp(attributeList.get(0));
-    }
+    if (attributeList.get(0).equals("null")) driftTimestamp = Optional.empty();
+    else driftTimestamp = Optional.of(parseTimestamp(attributeList.get(0)));
 
-    if (attributeList.get(1).equals("null")) {
-      shiftTimestamp = null;
-    } else {
-      shiftTimestamp = parseTimestamp(attributeList.get(1));
-    }
+    if (attributeList.get(1).equals("null")) shiftTimestamp = Optional.empty();
+    else shiftTimestamp = Optional.of(parseTimestamp(attributeList.get(1)));
 
     ControlEvent controlEvent = new ControlEvent(driftTimestamp, shiftTimestamp);
-    return controlEvent;
+    return Optional.of(controlEvent);
   }
 }

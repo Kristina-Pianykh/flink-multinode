@@ -44,9 +44,22 @@
     <dependencies>
         <dependency>
             <groupId>com.huberlin</groupId>
+            <artifactId>shared-config</artifactId>
+            <version>0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.huberlin</groupId>
             <artifactId>event</artifactId>
             <version>0.1</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.huberlin</groupId>
+            <artifactId>monitoring</artifactId>
+            <version>0.1</version>
+        </dependency>
+
 
         <dependency>
             <groupId>com.google.guava</groupId>

@@ -7,8 +7,8 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.huberlin</groupId>
-  <artifactId>monitoring</artifactId>
-  <name>Monitoring Module</name>
+  <artifactId>test</artifactId>
+  <name>Test Module (not shared)</name>
   <version>0.1</version>
   <build>
     <pluginManagement>
@@ -58,8 +58,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
         <configuration>
-          <source>${target.java.version}</source>
-          <target>${target.java.version}</target>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
         </configuration>
       </plugin>
       <plugin>
@@ -76,6 +76,8 @@
                 <excludes>
                   <exclude>org.apache.flink:force-shading</exclude>
                   <exclude>com.google.code.findbugs:jsr305</exclude>
+                  <exclude>org.slf4j:*</exclude>
+                  <exclude>log4j:*</exclude>
                 </excludes>
               </artifactSet>
               <filters>
@@ -90,7 +92,7 @@
               </filters>
               <transformers>
                 <transformer>
-                  <mainClass>com.huberlin.monitor.Monitor</mainClass>
+                  <mainClass>com.huberlin.test.Test</mainClass>
                 </transformer>
               </transformers>
             </configuration>
@@ -99,6 +101,25 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>add-dependencies-for-IDEA</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-java</artifactId>
+          <version>${flink.version}</version>
+          <scope>compile</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+          <version>${flink.version}</version>
+          <scope>compile</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
   <repositories>
     <repository>
       <releases>
@@ -110,15 +131,51 @@
       <url>https://repository.apache.org/content/repositories/snapshots/</url>
     </repository>
   </repositories>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-java</artifactId>
+      <version>1.6.1</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>commons-math3</artifactId>
+          <groupId>org.apache.commons</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-streaming-java_2.11</artifactId>
+      <version>1.6.1</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>commons-math3</artifactId>
+          <groupId>org.apache.commons</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.7</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>log4j</groupId>
+      <artifactId>log4j</artifactId>
+      <version>1.2.17</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
   <properties>
-    <scala.binary.version>2.12</scala.binary.version>
-    <maven.compiler.target>${target.java.version}</maven.compiler.target>
-    <slf4j.version>1.7.32</slf4j.version>
-    <maven.compiler.source>${target.java.version}</maven.compiler.source>
+    <scala.binary.version>2.11</scala.binary.version>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <java.version>1.8</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <log4j.version>2.17.1</log4j.version>
-    <target.java.version>11</target.java.version>
-    <flink.version>1.14.2</flink.version>
+    <flink.version>1.6.1</flink.version>
   </properties>
 </project>
 

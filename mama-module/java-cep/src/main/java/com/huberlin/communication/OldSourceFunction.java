@@ -2,13 +2,18 @@ package com.huberlin.javacep.communication;
 
 import com.huberlin.event.ControlEvent;
 import com.huberlin.event.Event;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-import java.net.Socket;
+import com.huberlin.javacep.ScheduledTask;
+import com.huberlin.javacep.config.ForwardingTable;
+import com.huberlin.javacep.config.NodeAddress;
+import com.huberlin.monitor.FormatTimestamp;
+import com.huberlin.sharedconfig.RateMonitoringInputs;
+import java.io.*;
+import java.net.*;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -21,13 +26,30 @@ import org.slf4j.LoggerFactory;
 
 public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>> {
   private static final Logger log = LoggerFactory.getLogger(OldSourceFunction.class);
+  public RateMonitoringInputs rateMonitoringInputs;
+  public Map<Integer, NodeAddress> addressBook;
+  public ForwardingTable updatedFwdTable;
+  public int nodeId;
   private volatile boolean isCancelled = false;
-  private BlockingQueue<Tuple2<Integer, Event>> merged_event_stream;
-  private final int port;
   public static boolean multiSinkQueryEnabled = false;
+  public static Optional<Long> driftTimestamp = Optional.empty();
+  public static Optional<Long> shiftTimestamp = Optional.empty();
+  public static Optional<Date> _shiftTimestamp = Optional.empty();
+  private BlockingQueue<Tuple2<Integer, Event>> merged_event_stream;
+  public Set<Event> partEventBuffer = new HashSet<>();
+  private final int port;
 
-  public OldSourceFunction(int listen_port) {
+  public OldSourceFunction(
+      RateMonitoringInputs rateMonitoringInputs,
+      Map<Integer, NodeAddress> addressBook,
+      ForwardingTable updatedFwdTable,
+      int nodeId,
+      int listen_port) {
     super();
+    this.rateMonitoringInputs = rateMonitoringInputs;
+    this.addressBook = addressBook;
+    this.updatedFwdTable = updatedFwdTable;
+    this.nodeId = nodeId;
     this.port = listen_port;
   }
 
@@ -121,10 +143,43 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           input.close();
           socket.close(); // sockets connections are not reused
           return;
+
         } else if (message.startsWith("control")) {
-          ControlEvent controlEvent = ControlEvent.parse(message);
-          assert controlEvent != null : "Parsing control event " + message + "failed";
-          System.out.println("Received control event: " + controlEvent.toString());
+          Optional<ControlEvent> controlEvent = ControlEvent.parse(message);
+          assert controlEvent.isPresent() : "Parsing control event " + message + "failed";
+          System.out.println("Received control event: " + controlEvent.get().toString());
+
+          if (controlEvent.get().driftTimestamp.isPresent() && driftTimestamp.isEmpty()) {
+            driftTimestamp = Optional.of(controlEvent.get().driftTimestamp.get());
+            LocalDateTime secondsLater = LocalDateTime.now().plusSeconds(5);
+            Date secondsLaterAsDate =
+                Date.from(secondsLater.atZone(ZoneId.systemDefault()).toInstant());
+            System.out.println("Drift timestamp: " + FormatTimestamp.format(driftTimestamp.get()));
+            System.out.println("Current time: " + LocalDateTime.now().toString());
+            System.out.println("Shift timestamp: " + secondsLaterAsDate.toString());
+            Timer timer = new Timer();
+            System.out.println("Initialized a timer");
+            System.out.println("partEventBuffer = " + partEventBuffer.toString());
+            System.out.println("addressBook = " + addressBook.toString());
+            System.out.println("updatedFwdTable = " + updatedFwdTable.toString());
+            System.out.println("nodeId = " + nodeId);
+            System.out.println(
+                "rateMonitoringInputs.partitioningInput = "
+                    + rateMonitoringInputs.partitioningInput);
+            ScheduledTask scheduledPartEventBufferFlush =
+                new ScheduledTask(
+                    this.partEventBuffer,
+                    this.addressBook,
+                    this.updatedFwdTable,
+                    this.nodeId,
+                    this.rateMonitoringInputs.partitioningInput,
+                    timer);
+            System.out.println("Initialized a scheduled task");
+
+            timer.schedule(scheduledPartEventBufferFlush, secondsLaterAsDate);
+            // System.out.println("Fire time: " + secondsLaterAsDate.toString());
+            _shiftTimestamp = Optional.of(secondsLaterAsDate);
+          }
 
         } else if (client_node_id == null) {
           if (!message.startsWith("I am ")) {
@@ -147,6 +202,29 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           LocalTime currTime = LocalTime.now();
           DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss:SSSSSS");
           System.out.println(event + " was received at: " + currTime.format(formatter));
+
+          if (_shiftTimestamp.isPresent()) {
+            LocalDateTime fireTime =
+                _shiftTimestamp.get().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            boolean isTransitionPhase =
+                driftTimestamp.isPresent()
+                    && _shiftTimestamp.isPresent()
+                    && LocalDateTime.now().isBefore(fireTime);
+
+            // TODO: make sure the buffer is cleared for GC after the shift (it's cleared in the
+            // timerTask tho)
+            System.out.println(
+                "rateMonitoringInputs.isNonFallbackNode(this.nodeId) = "
+                    + rateMonitoringInputs.isNonFallbackNode(this.nodeId));
+            System.out.println(
+                "event.eventType.equals(rateMonitoringInputs.partitioningInput) = "
+                    + event.eventType.equals(rateMonitoringInputs.partitioningInput));
+            System.out.println("isTransitionPhase = " + isTransitionPhase);
+            if (rateMonitoringInputs.isNonFallbackNode(this.nodeId)
+                && event.eventType.equals(rateMonitoringInputs.partitioningInput)
+                && isTransitionPhase) this.partEventBuffer.add(event);
+          }
+
         } else {
           log.debug("Ignoring message:" + message);
         }
