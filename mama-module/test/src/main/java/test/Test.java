@@ -3,6 +3,8 @@ package com.huberlin.test;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class Test {
 
@@ -21,13 +23,11 @@ public class Test {
     System.out.println("Current time: " + LocalDateTime.now().toString());
     System.out.println("Fire time: " + twoSecondsLaterAsDate.toString());
 
-    Timer timer = new Timer();
-    DatabaseMigrationTask task = new DatabaseMigrationTask(oldDatabase, newDatabase, timer);
-    // task.oldDatabase = oldDatabase;
-    // task.newDatabase = newDatabase;
-    // task.timer = timer;
+    DatabaseMigrationTask task = new DatabaseMigrationTask(oldDatabase, newDatabase);
 
-    timer.schedule(task, twoSecondsLaterAsDate);
+    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    scheduler.schedule(task, 2, TimeUnit.SECONDS);
+
     System.out.println("Scheduled a task");
     oldDatabase.add("an unexpected item");
 
@@ -39,15 +39,12 @@ public class Test {
     //     e.printStackTrace();
     //   }
     // }
-    // while (true) {
-    //   System.out.println("oldDatabase: " + oldDatabase.toString());
-    //   if (oldDatabase.isEmpty()) {
-    //     timer.cancel();
-    //     break;
-    //   }
-    // }
     // do {} while (!oldDatabase.isEmpty());
     System.out.println("oldDatabase: " + oldDatabase.toString());
     System.out.println("newDatabase: " + newDatabase.toString());
+    if (scheduler.isTerminated()) {
+      System.out.println("Scheduler terminated");
+      scheduler.shutdown();
+    }
   }
 }

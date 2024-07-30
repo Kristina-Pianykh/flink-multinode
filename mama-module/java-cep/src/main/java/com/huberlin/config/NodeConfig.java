@@ -1,5 +1,6 @@
 package com.huberlin.javacep.config;
 
+import com.huberlin.javacep.communication.addresses.TCPAddressString;
 import com.huberlin.sharedconfig.RateMonitoringInputs;
 import java.io.IOException;
 import java.io.Serializable;
@@ -23,6 +24,7 @@ public class NodeConfig implements Serializable {
 
   public static class Forwarding implements Serializable {
     public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
+    public HashMap<Integer, TCPAddressString> addressBookTCP;
     public ForwardingTable table = new ForwardingTable();
     public ForwardingTable updatedTable = new ForwardingTable();
     public ArrayList<Integer> recipient;
@@ -124,6 +126,23 @@ public class NodeConfig implements Serializable {
     }
   }
 
+  private HashMap<Integer, TCPAddressString> parseAddressBook(
+      Map<Integer, NodeAddress> address_book, ForwardingTable fwd_table, int nodeid) {
+    HashMap<Integer, TCPAddressString> addressBookTCP = new HashMap<>();
+    // TODO: move logic to initialization of fwd table and address book
+    // or at least in open() using richSinkFunction
+    // check that address book contains entries for all node ids
+    for (Integer node_id : fwd_table.get_all_node_ids())
+      if (!address_book.containsKey(node_id))
+        throw new IllegalArgumentException(
+            "The address book does not have an entry for the node ID " + node_id);
+    // convert node ids to tcp address strings in address book
+    for (Integer node_id : address_book.keySet())
+      addressBookTCP.put(node_id, new TCPAddressString(address_book.get(node_id).getEndpoint()));
+
+    return addressBookTCP;
+  }
+
   private void parseForwarding(JSONObject local, JSONObject address_book, JSONObject updatedRules) {
     JSONObject forwardingObject = local.getJSONObject("forwarding");
     this.forwarding = new NodeConfig.Forwarding();
@@ -203,6 +222,9 @@ public class NodeConfig implements Serializable {
     System.out.println("  Table: ");
     this.forwarding.table.print();
     System.out.println("  Address book: " + this.forwarding.addressBook);
+    this.forwarding.addressBookTCP =
+        parseAddressBook(this.forwarding.addressBook, this.forwarding.table, this.nodeId);
+    System.out.println("  Address book TCP: " + this.forwarding.addressBookTCP);
   }
 
   private void parseProcessing(JSONObject local) {

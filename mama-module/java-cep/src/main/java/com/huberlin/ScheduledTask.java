@@ -3,49 +3,53 @@ package com.huberlin.javacep;
 import com.huberlin.event.Event;
 import com.huberlin.javacep.communication.addresses.TCPAddressString;
 import com.huberlin.javacep.config.ForwardingTable;
-import com.huberlin.javacep.config.NodeAddress;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.util.*;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ScheduledTask extends TimerTask {
+public class ScheduledTask implements Runnable {
   public int nodeId;
   public ForwardingTable fwdTable;
   public HashMap<Integer, TCPAddressString> addressBook;
   public Set<Event> eventBuffer;
   public String eventType;
   public HashMap<Integer, Tuple2<Socket, PrintWriter>> dstSocketWriterMap;
-  public Timer timer;
+  private static final Logger LOG = LoggerFactory.getLogger(ScheduledTask.class);
 
   public ScheduledTask(
       Set<Event> eventBuffer,
-      Map<Integer, NodeAddress> addressBook,
+      HashMap<Integer, TCPAddressString> addressBook,
       ForwardingTable fwdTable,
       int nodeId,
-      String eventType,
-      Timer timer) {
+      String eventType) {
     this.eventBuffer = eventBuffer;
-    this.nodeId = nodeId;
+    this.addressBook = addressBook;
     this.fwdTable = fwdTable;
+    this.nodeId = nodeId;
     this.eventType = eventType;
-    this.addressBook = new HashMap<>();
-    this.timer = timer;
 
-    // check that address book contains entries for all node ids
-    for (Integer node_id : fwdTable.get_all_node_ids())
-      if (!addressBook.containsKey(node_id))
-        throw new IllegalArgumentException(
-            "The address book does not have an entry for the node ID " + node_id);
-    // convert node ids to tcp address strings in address book
-    for (Integer node_id : addressBook.keySet())
-      this.addressBook.put(node_id, new TCPAddressString(addressBook.get(node_id).getEndpoint()));
+    LOG.info("initializing socket writer map");
+    try {
+      this.dstSocketWriterMap = initSocketWriterMap(this.eventType);
+      printSocketWriterMap();
+      LOG.info("Scheduled task created for node " + nodeId);
+    } catch (Exception exc) {
+      exc.printStackTrace();
+    }
+  }
 
-    System.out.println("initializing socket writer map");
-    this.dstSocketWriterMap = initSocketWriterMap(this.eventType);
-    System.out.println("Scheduled task created for node " + nodeId);
+  public void printSocketWriterMap() {
+    for (Map.Entry<Integer, Tuple2<Socket, PrintWriter>> entry :
+        this.dstSocketWriterMap.entrySet()) {
+      System.out.println("Dest Node ID: " + entry.getKey());
+      System.out.println("Socket: " + entry.getValue().f0);
+      System.out.println("Writer: " + entry.getValue().f1);
+    }
   }
 
   public HashMap<Integer, Tuple2<Socket, PrintWriter>> initSocketWriterMap(String eventType) {
@@ -63,7 +67,7 @@ public class ScheduledTask extends TimerTask {
         dstSockets.get(dstNodeId).f0 = client_socket;
         dstSockets.get(dstNodeId).f1 = new PrintWriter(client_socket.getOutputStream(), true);
       } catch (ConnectException e) {
-        System.out.println("Server is not running. Please start the server and try again.");
+        LOG.error("Server is not running. Please start the server and try again.");
         e.printStackTrace();
       } catch (IOException e) {
         e.printStackTrace();
@@ -85,20 +89,30 @@ public class ScheduledTask extends TimerTask {
 
   @Override
   public void run() {
-    System.out.println("FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE: " + this.eventBuffer.size());
-    assert (this.eventBuffer.stream()
-        .allMatch(event -> event.getEventType().equals(this.eventType)));
+    System.out.println("=========================================");
+    LOG.info("FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE: {}", this.eventBuffer.size());
+    LOG.info(this.eventBuffer.toString());
+    System.out.println("=========================================");
 
+    // try {
+    //   assert (this.eventBuffer.stream()
+    //       .allMatch(event -> event.getEventType().equals(this.eventType)));
+    // } catch (AssertionError e) {
+    //   LOG.error("Event type mismatch in the event buffer");
+    //   e.printStackTrace();
+    // }
+
+    LOG.info("Number of socket-writers: {}", this.dstSocketWriterMap.size());
     for (Tuple2<Socket, PrintWriter> dstSocketWriter : this.dstSocketWriterMap.values()) {
+      LOG.info("Writing to socket: {}", dstSocketWriter.f0);
       for (Event event : this.eventBuffer) {
         dstSocketWriter.f1.println(event.toString());
+        dstSocketWriter.f1.checkError();
       }
       dstSocketWriter.f1.flush();
     }
 
     this.eventBuffer.clear();
     closeAllWriterSocket();
-    this.timer.cancel();
-    this.timer.purge();
   }
 }
