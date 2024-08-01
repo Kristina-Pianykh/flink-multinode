@@ -111,14 +111,7 @@ public class DataStreamJob {
     // find out if outputselection is used, if yes, change the ids of the events that are selected
     // for the match
 
-    DataStream<Tuple2<Integer, Event>> inputStream =
-        env.addSource(
-            new OldSourceFunction(
-                config.rateMonitoringInputs,
-                config.forwarding.addressBookTCP,
-                config.forwarding.updatedTable,
-                config.nodeId,
-                config.hostAddress.port));
+    DataStream<Tuple2<Integer, Event>> inputStream = env.addSource(new OldSourceFunction(config));
 
     // important check if node is one of the multi-sink nodes
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
