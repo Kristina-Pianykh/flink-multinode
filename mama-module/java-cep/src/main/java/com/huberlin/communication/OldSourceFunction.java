@@ -6,10 +6,8 @@ import com.huberlin.event.Event;
 import com.huberlin.event.Message;
 import com.huberlin.event.SimpleEvent;
 import com.huberlin.javacep.ScheduledTask;
-import com.huberlin.javacep.communication.addresses.TCPAddressString;
-import com.huberlin.javacep.config.ForwardingTable;
+import com.huberlin.javacep.config.NodeConfig;
 import com.huberlin.monitor.FormatTimestamp;
-import com.huberlin.sharedconfig.RateMonitoringInputs;
 import java.io.*;
 import java.net.*;
 import java.time.*;
@@ -28,10 +26,7 @@ import org.slf4j.LoggerFactory;
 
 public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>> {
   private static final Logger LOG = LoggerFactory.getLogger(OldSourceFunction.class);
-  public RateMonitoringInputs rateMonitoringInputs;
-  public HashMap<Integer, TCPAddressString> addressBook;
-  public ForwardingTable updatedFwdTable;
-  public int nodeId;
+  public NodeConfig config;
   private volatile boolean isCancelled = false;
   public static boolean multiSinkQueryEnabled = false;
   public static Optional<Long> driftTimestamp = Optional.empty();
@@ -39,20 +34,12 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
   public static Optional<Date> _shiftTimestamp = Optional.empty();
   private BlockingQueue<Tuple2<Integer, Message>> parsedMessageStream;
   public Set<Event> partEventBuffer = new HashSet<>();
-  private final int port;
 
-  public OldSourceFunction(
-      RateMonitoringInputs rateMonitoringInputs,
-      HashMap<Integer, TCPAddressString> addressBook,
-      ForwardingTable updatedFwdTable,
-      int nodeId,
-      int listen_port) {
+  // private final int port;
+
+  public OldSourceFunction(NodeConfig config) {
     super();
-    this.rateMonitoringInputs = rateMonitoringInputs;
-    this.addressBook = addressBook;
-    this.updatedFwdTable = updatedFwdTable;
-    this.nodeId = nodeId;
-    this.port = listen_port;
+    this.config = config;
   }
 
   @Override
@@ -60,6 +47,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
       throws Exception {
     long timestamp_us = Long.MIN_VALUE; // AKA current global watermark
     while (!isCancelled) {
+
       // retrieve and remove the head of the queue (event stream)
       Tuple2<Integer, Message> srcNodeIdMessage = parsedMessageStream.take();
       // process it with Flink
@@ -73,6 +61,27 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
       LOG.debug("message is of type {}", srcNodeIdMessage.f1.getClass());
       List<Class> eventClasses = Arrays.asList(SimpleEvent.class, ComplexEvent.class, Event.class);
       if (eventClasses.contains(srcNodeIdMessage.f1.getClass())) {
+
+        /////////// DEBUGGING////////////
+        // try {
+        //   ScheduledTask scheduledPartEventBufferFlush =
+        //       new ScheduledTask(
+        //           this.partEventBuffer,
+        //           this.addressBook,
+        //           this.updatedFwdTable,
+        //           this.nodeId,
+        //           this.rateMonitoringInputs.partitioningInput);
+        //   ScheduledExecutorService scheduledExecutorService =
+        // Executors.newScheduledThreadPool(1);
+        //   scheduledExecutorService.schedule(
+        //       scheduledPartEventBufferFlush, 5, java.util.concurrent.TimeUnit.SECONDS);
+        //   LOG.info("Scheduled the task to run in 5 seconds");
+        //   scheduledExecutorService.shutdown();
+        // } catch (Exception e) {
+        //   e.printStackTrace();
+        // }
+        /////////// DEBUGGING////////////
+
         Tuple2<Integer, Event> srcNodeIdEvent =
             new Tuple2<>(srcNodeIdMessage.f0, (Event) srcNodeIdMessage.f1);
         sourceContext.collectWithTimestamp(srcNodeIdEvent, timestamp_us);
@@ -101,13 +110,14 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           // timerTask tho)
           LOG.info(
               "rateMonitoringInputs.isNonFallbackNode(this.nodeId) = "
-                  + rateMonitoringInputs.isNonFallbackNode(this.nodeId));
+                  + config.rateMonitoringInputs.isNonFallbackNode(config.nodeId));
           LOG.info(
               "event.eventType.equals(rateMonitoringInputs.partitioningInput) = "
-                  + srcNodeIdEvent.f1.eventType.equals(rateMonitoringInputs.partitioningInput));
+                  + srcNodeIdEvent.f1.eventType.equals(
+                      config.rateMonitoringInputs.partitioningInput));
           LOG.info("isTransitionPhase = " + isTransitionPhase);
-          if (rateMonitoringInputs.isNonFallbackNode(this.nodeId)
-              && srcNodeIdEvent.f1.eventType.equals(rateMonitoringInputs.partitioningInput)
+          if (config.rateMonitoringInputs.isNonFallbackNode(config.nodeId)
+              && srcNodeIdEvent.f1.eventType.equals(config.rateMonitoringInputs.partitioningInput)
               && isTransitionPhase) {
             this.partEventBuffer.add(srcNodeIdEvent.f1);
             LOG.info("Inserted event {} into the nonPartBuffer", srcNodeIdEvent.f1);
@@ -128,12 +138,11 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           LOG.info("Shift timestamp: " + secondsLaterAsDate.toString());
           try {
             ScheduledTask scheduledPartEventBufferFlush =
-                new ScheduledTask(
-                    this.partEventBuffer,
-                    this.addressBook,
-                    this.updatedFwdTable,
-                    this.nodeId,
-                    this.rateMonitoringInputs.partitioningInput);
+                new ScheduledTask(this.partEventBuffer, this.config);
+            // this.addressBook,
+            // this.updatedFwdTable,
+            // this.nodeId,
+            // this.rateMonitoringInputs.partitioningInput);
             ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
             scheduledExecutorService.schedule(
                 scheduledPartEventBufferFlush, 5, java.util.concurrent.TimeUnit.SECONDS);
@@ -160,11 +169,10 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
     super.open(parameters);
     parsedMessageStream = new LinkedBlockingQueue<>();
 
-    // TODO: do we need server socket initialization in a thread?
     Thread new_connection_accepting_thread =
         new Thread(
             () -> {
-              try (ServerSocket accepting_socket = new ServerSocket(port)) {
+              try (ServerSocket accepting_socket = new ServerSocket(this.config.hostAddress.port)) {
                 // accepting_socket.setReuseAddress(true);
                 // try {
                 //   accepting_socket.bind(new InetSocketAddress(port));

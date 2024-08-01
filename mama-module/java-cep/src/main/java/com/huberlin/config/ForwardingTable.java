@@ -7,14 +7,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ForwardingTable implements Serializable {
-  private static final Logger log = LoggerFactory.getLogger(ForwardingTable.class);
-  private final HashMap<String, HashMap<Integer, TreeSet<Integer>>> table = new HashMap<>();
+  private static final Logger LOG = LoggerFactory.getLogger(ForwardingTable.class);
+  // private final HashMap<String, HashMap<Integer, TreeSet<Integer>>> table = new HashMap<>();
+  public HashMap<String, HashMap<Integer, TreeSet<Integer>>> table = new HashMap<>();
 
   /** Lookup destinations */
   public SortedSet<Integer> lookup(String event_type, Integer source) {
     SortedSet<Integer> result = this.table.getOrDefault(event_type, new HashMap<>()).get(source);
     if (result == null) {
-      log.warn(
+      LOG.warn(
           "No entry in forwarding table for event type "
               + event_type
               + " and source id "
@@ -27,6 +28,7 @@ public class ForwardingTable implements Serializable {
 
   // lookup destinctions for the updated forwarding table (containes null as src node)
   // the input arg is supposed to be the partitioning event type
+  // TODO: refactor to use one func for regular fwd table and the updated one
   public SortedSet<Integer> lookupUpdated(String eventType) {
     SortedSet<Integer> dest = new TreeSet<>();
 
@@ -42,7 +44,7 @@ public class ForwardingTable implements Serializable {
     System.out.println(dest);
 
     if (dest == null) {
-      log.warn(
+      LOG.warn(
           "No entry in forwarding table for event type "
               + eventType
               + ". Returning empty destination set.");
@@ -124,5 +126,92 @@ public class ForwardingTable implements Serializable {
       }
     }
   }
-  //   private final HashMap<String, HashMap<Integer, TreeSet<Integer>>> table = new HashMap<>();
+
+  public HashSet<Integer> toHashSet(SortedSet<Integer> dsts) {
+    HashSet<Integer> set = new HashSet<>();
+    for (Integer dst : dsts) {
+      set.add(dst);
+    }
+    return set;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    // HashMap<String, HashMap<Integer, TreeSet<Integer>>> table = new HashMap<>(); event type -->
+    // source node id --> destination node ids
+    if (other == null) {
+      LOG.warn("RHS ForwardingTable is null");
+      return false;
+    }
+
+    try {
+      if (!(other instanceof ForwardingTable)) {
+        LOG.debug("ForwardingTable: other is of type {}", other.getClass());
+        return false;
+      }
+
+      if (other == this) {
+        LOG.debug("ForwardingTable: other is the same object as this");
+        return true;
+      }
+
+      ForwardingTable otherTable = (ForwardingTable) other;
+      if (this.table.size() != otherTable.table.size()) {
+        LOG.debug("ForwardingTable: table sizes are different");
+        return false;
+      }
+
+      for (String eventType : this.table.keySet()) {
+        LOG.debug("Checking event type {} in LHS ForwardingTable", eventType);
+        if (!otherTable.table.keySet().contains(eventType)) {
+          LOG.debug("Event type {} not in RHS table", eventType);
+          return false;
+        } else {
+          HashMap<Integer, TreeSet<Integer>> thisSrcDestMap = this.table.get(eventType);
+          if (thisSrcDestMap.size() != otherTable.table.get(eventType).size()) {
+            LOG.debug("Number of forwarding rules for event type {} is different", eventType);
+            return false;
+          }
+          HashMap<Integer, TreeSet<Integer>> thatSrcDestMap = otherTable.table.get(eventType);
+
+          for (Integer srcNode : thisSrcDestMap.keySet()) {
+            LOG.debug("Checking source node {} in LHS ForwardingTable", srcNode);
+            if (!thatSrcDestMap.keySet().contains(srcNode)) {
+              LOG.debug("Source node {} not in RHS table", srcNode);
+              return false;
+            }
+            if (thisSrcDestMap.get(srcNode).size() != thatSrcDestMap.get(srcNode).size()) {
+              LOG.debug(
+                  "Number of destinations for source node {} and event type {} is different",
+                  srcNode,
+                  eventType);
+              return false;
+            } else {
+              HashSet thisDsts = toHashSet(thisSrcDestMap.get(srcNode));
+              HashSet thatDsts = toHashSet(thatSrcDestMap.get(srcNode));
+              LOG.debug(
+                  "Comparing destinations for source node {} and event type {}",
+                  srcNode,
+                  eventType);
+              LOG.debug("LHS destinations: {}", thisDsts);
+              LOG.debug("RHS destinations: {}", thatDsts);
+              if (!thisDsts.equals(thatDsts)) {
+                LOG.debug(
+                    "Destinations for source node {} and event type {} are different",
+                    srcNode,
+                    eventType);
+                return false;
+              }
+            }
+          }
+        }
+      }
+    } catch (NullPointerException e) {
+      LOG.error("Error while comparing forwarding tables: " + e.getMessage());
+      LOG.error("LHS forwarding table is null");
+      return false;
+    }
+
+    return true;
+  }
 }

@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SendToMonitor extends RichSinkFunction<Event> {
-  private static final Logger log = LoggerFactory.getLogger(TCPEventSender.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TCPEventSender.class);
   final int nodeId;
   final boolean isMultiSinkNode;
   private PrintWriter writer = null;
@@ -22,14 +22,14 @@ public class SendToMonitor extends RichSinkFunction<Event> {
     this.nodeId = nodeId;
     this.port = nodePort + 20;
     this.isMultiSinkNode = isMiltiSinkNode;
-    System.out.println("SendToMonitor created with port " + port);
+    LOG.info("SendToMonitor created with port " + port);
   }
 
   @Override
   public void open(Configuration parameters) throws Exception {
     super.open(parameters);
     if (!isMultiSinkNode) {
-      System.out.println("SendToMonitor: Not a multi sink node. Skip creating a sink.");
+      LOG.info("SendToMonitor: Not a multi sink node. Skip creating a sink.");
       return;
     }
     this.socket = openSocket(port, 1);
@@ -40,9 +40,9 @@ public class SendToMonitor extends RichSinkFunction<Event> {
     if (this.writer == null) {
       return;
     }
-    // assert this.socket != null;
-    // assert this.writer != null;
-    System.out.println("SendToMonitor: Opened socket on port " + port);
+    assert this.socket != null;
+    assert this.writer != null;
+    LOG.info("SendToMonitor: Opened socket on port " + port);
   }
 
   public PrintWriter createWriter(Socket socket) {
@@ -58,21 +58,21 @@ public class SendToMonitor extends RichSinkFunction<Event> {
   public Socket openSocket(int port, int attempt) {
     Socket socket = null;
     if (attempt > 5) {
-      System.out.println("Could not open socket on port " + port);
+      LOG.error("Could not open socket on port " + port);
       return null;
     }
     try {
       socket = new Socket("localhost", port);
 
-      System.out.println("Socket opened on port " + port);
+      LOG.info("Socket opened on port " + port);
     } catch (IOException e) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e1) {
         e1.printStackTrace();
       }
-      System.out.println("Could not open socket on port " + port);
-      System.out.println("Trying again in 1 second...");
+      LOG.error("Could not open socket on port " + port);
+      LOG.error("Trying again in 1 second...");
       socket = openSocket(port, attempt + 1);
     }
     return socket;
@@ -87,7 +87,7 @@ public class SendToMonitor extends RichSinkFunction<Event> {
     if (!isMultiSinkNode) {
       return;
     }
-    System.out.println("SendToMonitor: " + event.toString());
+    LOG.info("SendToMonitor: " + event.toString());
     this.writer.println(event.toString());
   }
 
