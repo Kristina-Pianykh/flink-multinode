@@ -46,6 +46,12 @@
         <version>0.1</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.huberlin</groupId>
+      <artifactId>java-cep</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+
 		<!-- Apache Flink dependencies -->
 		<!-- These dependencies are provided, because they should not be packaged into the JAR file. -->
 		<dependency>
