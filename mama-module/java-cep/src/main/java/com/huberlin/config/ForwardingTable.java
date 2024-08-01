@@ -106,6 +106,32 @@ public class ForwardingTable implements Serializable {
         .collect(Collectors.toCollection(TreeSet::new));
   }
 
+  @Override
+  public String toString() {
+    if (this.table.isEmpty()) {
+      return "";
+    }
+
+    StringBuilder sb = new StringBuilder();
+    for (String eventType : this.table.keySet()) {
+      HashMap<Integer, TreeSet<Integer>> map = this.table.get(eventType);
+      for (Integer source_id : map.keySet()) {
+        TreeSet<Integer> destinations = map.get(source_id);
+        for (Integer destination_id : destinations) {
+          sb.append(
+              "Event type: "
+                  + eventType
+                  + " source ID: "
+                  + source_id
+                  + " dest ID: "
+                  + destination_id
+                  + "\n");
+        }
+      }
+    }
+    return sb.toString();
+  }
+
   public void print() {
     if (this.table.isEmpty()) {
       System.out.println("Forwarding table is empty.");

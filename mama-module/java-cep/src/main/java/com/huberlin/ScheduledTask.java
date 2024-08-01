@@ -92,7 +92,7 @@ public class ScheduledTask implements Runnable {
   @Override
   public void run() {
     LOG.info("Updating forwarding table...");
-    LOG.info("Forwarding table before update: {}", this.config.forwarding.table);
+    LOG.info("Forwarding table before update: {}", this.config.forwarding.table.toString());
     this.config.forwarding.table = this.config.forwarding.updatedTable;
 
     try {
@@ -104,16 +104,15 @@ public class ScheduledTask implements Runnable {
       LOG.error(
           "Update of forwarding table failed\n. this.config.forwarding.table = {}\n"
               + "this.config.forwarding.updatedTable = {}",
-          this.config.forwarding.table,
-          this.config.forwarding.updatedTable);
+          this.config.forwarding.table.toString(),
+          this.config.forwarding.updatedTable.toString());
       e.printStackTrace();
     }
 
     LOG.info("Forwarding table updated successfully");
-    LOG.info("Forwarding table after update: {}", this.config.forwarding.table);
+    LOG.info("Forwarding table after update: {}", this.config.forwarding.table.toString());
     LOG.info(
-        "=========================================FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE:"
-            + " {}=========================================",
+        "===============FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE:" + " {}===============",
         this.eventBuffer.size());
     LOG.info(this.eventBuffer.toString());
 
