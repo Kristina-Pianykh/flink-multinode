@@ -1,0 +1,45 @@
+---
+name: Update README
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    contents: write
+
+jobs:
+    count_code_line:
+        name: Count Code Line
+        runs-on: ubuntu-latest
+        outputs:
+            count: ${{ steps.cnt.outputs.line_count }}
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - id: cnt
+              run: |
+                  line_count=$(find . -regex ".*/src/.*\.java" -not -regex ".*/src/test/.*" | xargs cat | wc -l)
+                  echo "$line_count lines of code"
+                  echo "line_count=$line_count" >> "$GITHUB_OUTPUT"
+
+    update_readme:
+        name: Update README
+        runs-on: ubuntu-latest
+        needs: [count_code_line]
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Update README
+              run: |
+                  echo "${{ needs.count_code_line.outputs.count }} lines of code"
+                  echo "\`\`\`" > README.md
+                  echo "Java Line Count: ${{ needs.count_code_line.outputs.count }}" >> README.md
+                  echo "\`\`\`" >> README.md
+
+            - uses: stefanzweifel/git-auto-commit-action@v5
+              with:
+                  file_pattern: '*.md'
+                  disable_globbing: true
