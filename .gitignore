@@ -51,5 +51,5 @@ deploying/provisionMythicBeasts
 deplaying/example_inputs/multiquery/*
 java-cep/.idea/*
 **/*.log
-monitoring/*.csv
+**/*.csv
 **/*.png
