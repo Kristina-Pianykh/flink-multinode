@@ -46,6 +46,12 @@
         <version>0.1</version>
     </dependency>
 
+    <!-- <dependency> -->
+    <!--     <groupId>com.huberlin</groupId> -->
+    <!--     <artifactId>monitoring</artifactId> -->
+    <!--     <version>0.1</version> -->
+    <!-- </dependency> -->
+
     <dependency>
       <groupId>com.huberlin</groupId>
       <artifactId>java-cep</artifactId>
