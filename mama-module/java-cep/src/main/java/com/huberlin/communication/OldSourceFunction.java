@@ -7,7 +7,7 @@ import com.huberlin.event.Message;
 import com.huberlin.event.SimpleEvent;
 import com.huberlin.javacep.ScheduledTask;
 import com.huberlin.javacep.config.NodeConfig;
-import com.huberlin.monitor.FormatTimestamp;
+import com.huberlin.monitor.TimeUtils;
 import java.io.*;
 import java.net.*;
 import java.time.*;
@@ -31,7 +31,6 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
   public static boolean multiSinkQueryEnabled = false;
   public static Optional<Long> driftTimestamp = Optional.empty();
   public static Optional<Long> shiftTimestamp = Optional.empty();
-  public static Optional<Date> _shiftTimestamp = Optional.empty();
   private BlockingQueue<Tuple2<Integer, Message>> parsedMessageStream;
   public Set<Event> partEventBuffer = new HashSet<>();
 
@@ -40,6 +39,10 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
   public OldSourceFunction(NodeConfig config) {
     super();
     this.config = config;
+  }
+
+  public static Long getTimeDeltaInSec(Long shiftTimestamp, Long driftTimestamp) {
+    return (shiftTimestamp - driftTimestamp) / 1_000_000L;
   }
 
   @Override
@@ -98,14 +101,19 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           LOG.trace("Watermark: " + timestamp_us);
         }
 
-        if (_shiftTimestamp.isPresent()) {
-          LocalDateTime fireTime =
-              _shiftTimestamp.get().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-          boolean isTransitionPhase =
-              driftTimestamp.isPresent()
-                  && _shiftTimestamp.isPresent()
-                  && LocalDateTime.now().isBefore(fireTime);
+        boolean beforeShiftTime =
+            TimeUtils.getCurrentTimeInMicroseconds()
+                < shiftTimestamp.orElse(
+                    0L); // 0L for when timestampts are not set yet and to avoid yet another if-else
+        boolean isTransitionPhase =
+            driftTimestamp.isPresent()
+                && (!shiftTimestamp.isPresent() || (shiftTimestamp.isPresent() && beforeShiftTime));
+        LOG.debug("beforeShiftTime = {}", beforeShiftTime);
+        LOG.debug("driftTimestamp.isPresent() = {}", driftTimestamp.isPresent());
+        LOG.debug("shiftTimestamp.isPresent() = {}", shiftTimestamp.isPresent());
+        LOG.debug("isTransitionPhase = {}", isTransitionPhase);
 
+        if (isTransitionPhase) {
           // TODO: make sure the buffer is cleared for GC after the shift (it's cleared in the
           // timerTask tho)
           LOG.info(
@@ -115,10 +123,10 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
               "event.eventType.equals(rateMonitoringInputs.partitioningInput) = "
                   + srcNodeIdEvent.f1.eventType.equals(
                       config.rateMonitoringInputs.partitioningInput));
-          LOG.info("isTransitionPhase = " + isTransitionPhase);
+
           if (config.rateMonitoringInputs.isNonFallbackNode(config.nodeId)
-              && srcNodeIdEvent.f1.eventType.equals(config.rateMonitoringInputs.partitioningInput)
-              && isTransitionPhase) {
+              && srcNodeIdEvent.f1.eventType.equals(
+                  config.rateMonitoringInputs.partitioningInput)) {
             this.partEventBuffer.add(srcNodeIdEvent.f1);
             LOG.info("Inserted event {} into the nonPartBuffer", srcNodeIdEvent.f1);
           }
@@ -128,28 +136,29 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
         LOG.debug("message is of type ControlEvent");
         ControlEvent controlEvent = (ControlEvent) srcNodeIdMessage.f1;
 
-        if (controlEvent.driftTimestamp.isPresent() && driftTimestamp.isEmpty()) {
+        // driftimeTimestamp should always be set? assert?
+        if (controlEvent.driftTimestamp.isPresent() && !driftTimestamp.isPresent()) {
           driftTimestamp = Optional.of(controlEvent.driftTimestamp.get());
-          LocalDateTime secondsLater = LocalDateTime.now().plusSeconds(5);
-          Date secondsLaterAsDate =
-              Date.from(secondsLater.atZone(ZoneId.systemDefault()).toInstant());
-          LOG.info("Drift timestamp: " + FormatTimestamp.format(driftTimestamp.get()));
-          LOG.info("Current time: " + LocalDateTime.now().toString());
-          LOG.info("Shift timestamp: " + secondsLaterAsDate.toString());
+          LOG.info("Drift timestamp: " + TimeUtils.format(driftTimestamp.get()));
+
+        } else if (controlEvent.shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
+          shiftTimestamp = Optional.of(controlEvent.shiftTimestamp.get());
+          Long transitionDurationInSec =
+              getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
+          LOG.info("Drift timestamp: {}", TimeUtils.format(driftTimestamp.get()));
+          LOG.info("Shift timestamp: {}", TimeUtils.format(shiftTimestamp.get()));
+          LOG.info("Transition duration: {} seconds", transitionDurationInSec);
+
           try {
             ScheduledTask scheduledPartEventBufferFlush =
                 new ScheduledTask(this.partEventBuffer, this.config);
-            // this.addressBook,
-            // this.updatedFwdTable,
-            // this.nodeId,
-            // this.rateMonitoringInputs.partitioningInput);
             ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
             scheduledExecutorService.schedule(
-                scheduledPartEventBufferFlush, 5, java.util.concurrent.TimeUnit.SECONDS);
-            LOG.info("Scheduled the task to run in 5 seconds");
+                scheduledPartEventBufferFlush,
+                transitionDurationInSec,
+                java.util.concurrent.TimeUnit.SECONDS);
+            LOG.info("Scheduled the task to run in {} seconds", transitionDurationInSec);
             scheduledExecutorService.shutdown();
-            // System.out.println("Fire time: " + secondsLaterAsDate.toString());
-            _shiftTimestamp = Optional.of(secondsLaterAsDate);
           } catch (Exception e) {
             LOG.error("Failed to initialize a scheduled task");
             e.printStackTrace();
@@ -213,13 +222,16 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
         LOG.info("Received message: " + message);
 
         // check, if a client has sent his entire event stream..
-        // TODO: double check the same condition: separate
-        if (message == null || message.contains("end-of-the-stream")) {
+        if (message.contains("end-of-the-stream")) {
           LOG.info("Reached the end of the stream for " + client_address);
-          if (message == null) LOG.warn("Stream terminated without end-of-the-stream marker.");
           input.close();
-          socket.close(); // sockets connections are not reused
+          socket.close();
           return;
+
+        } else if (message == null) {
+          LOG.warn("Stream terminated without end-of-the-stream marker.");
+          // do nothing, let the client reconnect after a one-time buffer flush
+          // for regular event forwarding
 
         } else if (message.startsWith("control")) {
           Optional<ControlEvent> controlEvent = ControlEvent.parse(message);

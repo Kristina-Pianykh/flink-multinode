@@ -19,6 +19,7 @@ public class Coordinator {
   private static final int PORT = 6668;
   private static final int COORDINATOR_ID = 42069;
   private static final int RETRY_INTERVAL = 3000;
+  private static final int TRANSITION_DURATION_IN_SECONDS = 8;
 
   private static CommandLine parseArgs(String[] args) {
     final Options cmdlineOpts = new Options();
@@ -90,7 +91,7 @@ public class Coordinator {
           socketWriterMap.get(dstNodeId).f0 = client_socket;
           socketWriterMap.get(dstNodeId).f1 = writer;
         } catch (ConnectException e) {
-          LOG.warn("Server is not responding with {}", e.getMessage());
+          LOG.warn("Server is not responding: {}", e.getMessage());
         } catch (IOException e) {
           LOG.error("Failed to establish connection with error: {}", e.getMessage());
         }
@@ -126,7 +127,7 @@ public class Coordinator {
       LOG.info("Coordinator started. Listening for connections on port " + PORT + "...");
       while (true) {
         Socket socket = serverSocket.accept();
-        new ClientHandler(socket).start();
+        new ClientHandler(socket, socketWriterMap).start();
       }
     } catch (IOException e) {
       LOG.error("Failed to start coordinator with error: {}", e.getMessage());
@@ -135,11 +136,24 @@ public class Coordinator {
     }
   }
 
+  public static Long addSeconds(Long timestamp, int seconds) {
+    return timestamp + seconds * 1_000_000L;
+  }
+
   private static class ClientHandler extends Thread {
     private Socket socket;
+    private HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap;
 
-    public ClientHandler(Socket socket) {
+    public ClientHandler(
+        Socket socket, HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap) {
       this.socket = socket;
+      this.socketWriterMap = socketWriterMap;
+    }
+
+    private void broadcastControlEvent(ControlEvent controlEvent) {
+      for (Tuple2<Socket, PrintWriter> socketWriter : this.socketWriterMap.values()) {
+        socketWriter.f1.println(controlEvent.toString());
+      }
     }
 
     @Override
@@ -158,10 +172,21 @@ public class Coordinator {
             input.close();
             socket.close();
             return;
+
           } else if (message.startsWith("control")) {
             Optional<ControlEvent> controlEvent = ControlEvent.parse(message);
             assert controlEvent.isPresent() : "Parsing control event " + message + "failed";
+            assert controlEvent.get().driftTimestamp.isPresent() : "Shift timestamp is not present";
             LOG.info("Received control event: " + controlEvent.get().toString());
+
+            Long driftTimestamp = controlEvent.get().driftTimestamp.get();
+            Long shiftTimestamp = addSeconds(driftTimestamp, TRANSITION_DURATION_IN_SECONDS);
+            LOG.info("Drift timestamp: " + driftTimestamp + " Shift timestamp: " + shiftTimestamp);
+
+            ControlEvent newControlEvent =
+                new ControlEvent(Optional.of(driftTimestamp), Optional.of(shiftTimestamp));
+            broadcastControlEvent(newControlEvent);
+            LOG.info("Broadcasted control event: " + newControlEvent.toString());
           }
         }
       } catch (IOException e) {
