@@ -62,19 +62,6 @@ public class MonitoringData implements Runnable {
     this.coordinatorPort = coordinatorPort;
   }
 
-  public long getCurrentTimeInMicroseconds() {
-    // Get the current time
-    LocalTime now = LocalTime.now();
-
-    // Calculate the total microseconds since the start of the day
-    long hoursInMicroseconds = now.getHour() * 60L * 60L * 1_000_000L;
-    long minutesInMicroseconds = now.getMinute() * 60L * 1_000_000L;
-    long secondsInMicroseconds = now.getSecond() * 1_000_000L;
-    long nanoInMicroseconds = now.getNano() / 1_000L;
-
-    return hoursInMicroseconds + minutesInMicroseconds + secondsInMicroseconds + nanoInMicroseconds;
-  }
-
   public long getCurrentTimeInSeconds() {
     // Get the current time
     LocalTime now = LocalTime.now();
@@ -89,7 +76,7 @@ public class MonitoringData implements Runnable {
 
   public Double updateRates(BlockingEventBuffer buffer, String eventType) {
     this.cutoffTimestamp =
-        getCurrentTimeInMicroseconds() - TimeUnit.SECONDS.toMicros(timeWindow) - 1;
+        TimeUtils.getCurrentTimeInMicroseconds() - TimeUnit.SECONDS.toMicros(timeWindow) - 1;
     buffer.clearOutdatedEvents(this.cutoffTimestamp);
     Integer numEvents =
         buffer.stream()
@@ -107,7 +94,7 @@ public class MonitoringData implements Runnable {
     System.out.println("\nBuffer size before dropping old events: " + this.buffer.size());
     System.out.println(this.buffer.toString());
     System.out.println(
-        "Dropping events with timestamp <= " + FormatTimestamp.format(this.cutoffTimestamp));
+        "Dropping events with timestamp <= " + TimeUtils.format(this.cutoffTimestamp));
     System.out.println("Buffer size before dropping old events: " + this.buffer.size());
     for (String eventType : nonPartInputRates.keySet()) {
       Double newRate = updateRates(buffer, eventType);
@@ -225,7 +212,7 @@ public class MonitoringData implements Runnable {
       if (!inequalityHolds()) {
         if (inequalityViolationsInARow >= 3) {
           System.out.println("=========== TRIGGER SWITCH ===========");
-          long t = getCurrentTimeInMicroseconds();
+          long t = TimeUtils.getCurrentTimeInMicroseconds();
           System.out.println("driftTimestamp = " + t);
           ControlEvent controlEvent = new ControlEvent(Optional.of(t), Optional.empty());
           sendControlEvent(controlEvent, nodePort);
