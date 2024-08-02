@@ -41,5 +41,6 @@ jobs:
 
             - uses: stefanzweifel/git-auto-commit-action@v5
               with:
+                  commit_message: "chore: update line count in README"
                   file_pattern: '*.md'
                   disable_globbing: true
