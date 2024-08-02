@@ -1,1 +1,3 @@
-## Total Lines of Code: 1
+```
+Java Line Count: 3399
+```
