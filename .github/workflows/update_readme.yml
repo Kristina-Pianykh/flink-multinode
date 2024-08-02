@@ -20,7 +20,7 @@ jobs:
 
             - id: cnt
               run: |
-                  line_count=$(find . -regex ".*/src/.*\.java" -not -regex ".*/src/test/.*" | xargs cat | wc -l)
+                  line_count=$(find . -regex ".*/src/.*\.java" | xargs cat | wc -l)
                   echo "$line_count lines of code"
                   echo "line_count=$line_count" >> "$GITHUB_OUTPUT"
 
@@ -31,6 +31,8 @@ jobs:
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
 
             - name: Update README
               run: |
@@ -39,8 +41,21 @@ jobs:
                   echo "Java Line Count: ${{ needs.count_code_line.outputs.count }}" >> README.md
                   echo "\`\`\`" >> README.md
 
+
+            - name: Get Last Commit Message
+              id: last-commit
+              run: |
+                echo "message=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
+                echo "author=$(git log -1 --pretty=\"%an <%ae>\")" >> $GITHUB_OUTPUT
+                echo "$message"
+                echo "$author"
+
             - uses: stefanzweifel/git-auto-commit-action@v5
               with:
-                  commit_message: "chore: update line count in README"
+                  commit_author: ${{ steps.last-commit.outputs.author }}
+                  commit_message: ${{ steps.last-commit.outputs.message }}
+                  commit_options: '--amend --no-edit'
+                  push_options: '--force'
+                  skip_fetch: true
                   file_pattern: '*.md'
                   disable_globbing: true
