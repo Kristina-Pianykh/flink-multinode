@@ -1,8 +1,10 @@
 package com.huberlin.test;
 
-import com.huberlin.javacep.config.ForwardingTable;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,82 +46,89 @@ public class Test {
     return table;
   }
 
-  public static void main(String[] args) {
-    // Generate a random table with 3 event types, 5 source nodes per event, and up to 10
-    // destination nodes per source
-    HashMap<String, HashMap<Integer, TreeSet<Integer>>> randomTable1 = generateRandomTable(3, 5, 5);
-    HashMap<String, HashMap<Integer, TreeSet<Integer>>> randomTable2 = generateRandomTable(3, 5, 5);
-    ForwardingTable tbl1 = new ForwardingTable();
-    ForwardingTable tbl2 = new ForwardingTable();
-    ForwardingTable tbl3 = new ForwardingTable();
-    ForwardingTable tbl4 = new ForwardingTable();
-    ForwardingTable tbl5 = new ForwardingTable();
-    ForwardingTable tbl6 = new ForwardingTable();
-    tbl1.table = randomTable1;
-    tbl2.table = randomTable2;
-    tbl3.table = randomTable2;
-    tbl4.table = null;
-    tbl6.table = null;
-    tbl5.table = tbl1.table;
+  // public static void main(String[] args) {
+  //   // Generate a random table with 3 event types, 5 source nodes per event, and up to 10
+  //   // destination nodes per source
+  //   HashMap<String, HashMap<Integer, TreeSet<Integer>>> randomTable1 = generateRandomTable(3, 5,
+  // 5);
+  //   HashMap<String, HashMap<Integer, TreeSet<Integer>>> randomTable2 = generateRandomTable(3, 5,
+  // 5);
+  //   ForwardingTable tbl1 = new ForwardingTable();
+  //   ForwardingTable tbl2 = new ForwardingTable();
+  //   ForwardingTable tbl3 = new ForwardingTable();
+  //   ForwardingTable tbl4 = new ForwardingTable();
+  //   ForwardingTable tbl5 = new ForwardingTable();
+  //   ForwardingTable tbl6 = new ForwardingTable();
+  //   tbl1.table = randomTable1;
+  //   tbl2.table = randomTable2;
+  //   tbl3.table = randomTable2;
+  //   tbl4.table = null;
+  //   tbl6.table = null;
+  //   tbl5.table = tbl1.table;
+  //
+  //   System.out.println(tbl1.table);
+  //   System.out.println(tbl2.table);
+  //   System.out.println(tbl3.table);
+  //   System.out.println("tbl1 == tbl2 : " + tbl1.table.equals(tbl2.table));
+  //   System.out.println("tbl2 == tbl3 : " + tbl2.table.equals(tbl3.table));
+  //   System.out.println("tbl2 == tbl4 : " + tbl2.table.equals(tbl4.table));
+  //   System.out.println(tbl4.table == tbl4.table);
+  //   try {
+  //     System.out.println("tbl4 == tbl4 : " + tbl4.table.equals(tbl4.table));
+  //   } catch (NullPointerException e) {
+  //     System.out.println("tbl4 == tbl4 : " + e.getMessage());
+  //   }
+  //   try {
+  //     System.out.println("tbl4 == tbl5 : " + tbl4.table.equals(tbl5.table));
+  //   } catch (NullPointerException e) {
+  //     e.printStackTrace();
+  //   }
+  //   System.out.println("tbl5 == tbl1 : " + tbl5.table.equals(tbl1.table));
+  //   System.out.println("tbl4 == tbl6 : " + tbl4.table.equals(tbl6.table));
+  // }
 
-    System.out.println(tbl1.table);
-    System.out.println(tbl2.table);
-    System.out.println(tbl3.table);
-    System.out.println("tbl1 == tbl2 : " + tbl1.table.equals(tbl2.table));
-    System.out.println("tbl2 == tbl3 : " + tbl2.table.equals(tbl3.table));
-    System.out.println("tbl2 == tbl4 : " + tbl2.table.equals(tbl4.table));
-    System.out.println(tbl4.table == tbl4.table);
+  public static void main(String[] args) {
+
+    ArrayList<String> oldDatabase = new ArrayList<>();
+    AtomicBoolean flag = new AtomicBoolean(true);
+    System.out.println("flag from main: " + flag);
+    oldDatabase.add("Harrison Ford");
+    oldDatabase.add("Carrie Fisher");
+    oldDatabase.add("Mark Hamill");
+    System.out.println("oldDatabase: " + oldDatabase.toString());
+    ArrayList<String> newDatabase = new ArrayList<>();
+
+    LocalDateTime twoSecondsLater = LocalDateTime.now().plusSeconds(2);
+    Date twoSecondsLaterAsDate =
+        Date.from(twoSecondsLater.atZone(ZoneId.systemDefault()).toInstant());
+    System.out.println("Current time: " + LocalDateTime.now().toString());
+    System.out.println("Fire time: " + twoSecondsLaterAsDate.toString());
+
+    DatabaseMigrationTask task = new DatabaseMigrationTask(oldDatabase, newDatabase, flag);
+
+    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    scheduler.schedule(task, 2, TimeUnit.SECONDS);
+    scheduler.shutdown();
+
+    System.out.println("Scheduled a task");
+    oldDatabase.add("an unexpected item");
+
+    // while (LocalDateTime.now().isBefore(twoSecondsLater)) {
+    //   assert (newDatabase).isEmpty();
+    //   try {
+    //     Thread.sleep(500);
+    //   } catch (InterruptedException e) {
+    //     e.printStackTrace();
+    //   }
+    // }
+    // do {} while (!oldDatabase.isEmpty());
+    System.out.println("oldDatabase: " + oldDatabase.toString());
+    System.out.println("newDatabase: " + newDatabase.toString());
     try {
-      System.out.println("tbl4 == tbl4 : " + tbl4.table.equals(tbl4.table));
-    } catch (NullPointerException e) {
-      System.out.println("tbl4 == tbl4 : " + e.getMessage());
-    }
-    try {
-      System.out.println("tbl4 == tbl5 : " + tbl4.table.equals(tbl5.table));
-    } catch (NullPointerException e) {
+      Thread.sleep(3000);
+    } catch (InterruptedException e) {
       e.printStackTrace();
     }
-    System.out.println("tbl5 == tbl1 : " + tbl5.table.equals(tbl1.table));
-    System.out.println("tbl4 == tbl6 : " + tbl4.table.equals(tbl6.table));
+    System.out.println("flag from main: " + flag);
   }
-
-  // public static void main(String[] args) {
-  //
-  //   ArrayList<String> oldDatabase = new ArrayList<>();
-  //   oldDatabase.add("Harrison Ford");
-  //   oldDatabase.add("Carrie Fisher");
-  //   oldDatabase.add("Mark Hamill");
-  //   System.out.println("oldDatabase: " + oldDatabase.toString());
-  //   ArrayList<String> newDatabase = new ArrayList<>();
-  //
-  //   LocalDateTime twoSecondsLater = LocalDateTime.now().plusSeconds(2);
-  //   Date twoSecondsLaterAsDate =
-  //       Date.from(twoSecondsLater.atZone(ZoneId.systemDefault()).toInstant());
-  //   System.out.println("Current time: " + LocalDateTime.now().toString());
-  //   System.out.println("Fire time: " + twoSecondsLaterAsDate.toString());
-  //
-  //   DatabaseMigrationTask task = new DatabaseMigrationTask(oldDatabase, newDatabase);
-  //
-  //   ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-  //   scheduler.schedule(task, 2, TimeUnit.SECONDS);
-  //
-  //   System.out.println("Scheduled a task");
-  //   oldDatabase.add("an unexpected item");
-  //
-  //   // while (LocalDateTime.now().isBefore(twoSecondsLater)) {
-  //   //   assert (newDatabase).isEmpty();
-  //   //   try {
-  //   //     Thread.sleep(500);
-  //   //   } catch (InterruptedException e) {
-  //   //     e.printStackTrace();
-  //   //   }
-  //   // }
-  //   // do {} while (!oldDatabase.isEmpty());
-  //   System.out.println("oldDatabase: " + oldDatabase.toString());
-  //   System.out.println("newDatabase: " + newDatabase.toString());
-  //   if (scheduler.isTerminated()) {
-  //     System.out.println("Scheduler terminated");
-  //     scheduler.shutdown();
-  //   }
-  // }
 }

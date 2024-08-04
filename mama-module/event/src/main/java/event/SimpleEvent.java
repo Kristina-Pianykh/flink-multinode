@@ -75,6 +75,7 @@ public class SimpleEvent extends Event implements Serializable {
     eventString.append(" | ").append(this.eventType);
     for (String attributeValue : this.attributeList)
       eventString.append(" | ").append(attributeValue);
+    eventString.append(" | ").append("multiSinkQueryEnabled=").append(this.multiSinkQueryEnabled);
     return eventString.toString();
   }
 

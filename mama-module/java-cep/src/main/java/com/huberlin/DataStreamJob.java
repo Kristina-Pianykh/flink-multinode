@@ -170,6 +170,7 @@ public class DataStreamJob {
     List<DataStream<Event>> outputstreams_by_query =
         PatternFactory_generic.processQueries(
             config.processing,
+            config,
             inputStream.map((tuple) -> tuple.f1)); // input stream w/o source information
 
     if (!outputstreams_by_query.isEmpty()) {
