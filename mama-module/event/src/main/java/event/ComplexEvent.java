@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 public class ComplexEvent extends Event implements Serializable {
   private static final long serialVersionUID = 1L; // Add a serialVersionUID for Serializable class
-  private static final Logger log = LoggerFactory.getLogger(ComplexEvent.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ComplexEvent.class);
   final ArrayList<SimpleEvent> eventList;
 
   String eventID;
@@ -49,10 +49,15 @@ public class ComplexEvent extends Event implements Serializable {
     this.highestTimestamp = highest_timestamp;
     this.lowestTimestamp = lowest_timestamp;
     this.eventID = event_ID;
+    this.setMultiSinkQueryEnabled(this.multiSinkQueryEnabledForAllSimpleEvents());
   }
 
   public int getNumberOfEvents() {
     return this.eventList.size();
+  }
+
+  private boolean multiSinkQueryEnabledForAllSimpleEvents() {
+    return this.eventList.stream().allMatch(e -> e.multiSinkQueryEnabled);
   }
 
   public String getID() {
@@ -135,12 +140,16 @@ public class ComplexEvent extends Event implements Serializable {
           .append(", ")
           .append(e.eventID)
           .append(", ")
-          .append(e.eventType);
+          .append(e.eventType)
+          .append(", ")
+          .append(e.multiSinkQueryEnabled);
       for (String attributeValue : e.attributeList) eventString.append(", ").append(attributeValue);
       eventString.append(")");
       if (i < this.getNumberOfEvents() - 1) // no ";" after last event in the list
       eventString.append(" ;");
     }
+    eventString.append(" | ").append("multiSinkQueryEnabled=").append(this.multiSinkQueryEnabled);
+
     return eventString.toString();
   }
 }

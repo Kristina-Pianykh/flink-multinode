@@ -11,6 +11,7 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.flink.cep.CEP;
+import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.pattern.Pattern;
@@ -18,6 +19,7 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,16 +56,19 @@ class ThroughputLogger extends Thread {
 }
 
 public class PatternFactory_generic {
-  private static final Logger log = LoggerFactory.getLogger(PatternFactory_generic.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PatternFactory_generic.class);
   private static AtomicInteger timestamp_counter = new AtomicInteger(0);
   private static long queryCounter = 0;
 
   public static List<DataStream<Event>> processQueries(
-      List<NodeConfig.Processing> allQueries, DataStream<Event> inputStream) {
+      List<NodeConfig.Processing> allQueries,
+      String multisinkQuery,
+      DataStream<Event> inputStream) {
+    LOG.debug("Multisink query: {}", multisinkQuery);
     List<DataStream<Event>> matchingStreams = new ArrayList<>();
     for (NodeConfig.Processing q : allQueries) {
       try {
-        matchingStreams.add(processQuery(q, inputStream));
+        matchingStreams.add(processQuery(q, multisinkQuery, inputStream));
         queryCounter++; // Query counter for patterns
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -73,32 +78,46 @@ public class PatternFactory_generic {
   }
 
   public static DataStream<Event> processQuery(
-      NodeConfig.Processing query, DataStream<Event> inputStream) throws Exception {
+      NodeConfig.Processing query, String multisinkQuery, DataStream<Event> inputStream)
+      throws Exception {
     if (query.subqueries.isEmpty()) {
       throw new Exception("No subqueries defined");
     }
 
-    DataStream<Event> output = processSubquery(0, query, inputStream);
+    LOG.debug("Number of subqueries for query {}: {}", query.queryName, query.subqueries.size());
+    DataStream<Event> output = processSubquery(0, query, multisinkQuery, inputStream);
 
     for (int i = 1; i < query.subqueries.size(); i++) {
-      output = processSubquery(i, query, output);
+      output = processSubquery(i, query, multisinkQuery, output);
     }
 
     return output;
   }
 
   public static DataStream<Event> processSubquery(
-      final int num_subquery, NodeConfig.Processing queryInfo, DataStream<Event> inputStream) {
+      final int num_subquery,
+      NodeConfig.Processing queryInfo,
+      String multisinkQuery,
+      DataStream<Event> inputStream) {
+    LOG.debug("Processing subquery {} for query {}", num_subquery, queryInfo.queryName);
     List<String> inputs = queryInfo.inputs.get(num_subquery);
+    LOG.debug("Inputs: {}", inputs);
 
     // Get every permutation of inputs (order they could arrive in)
     Collection<List<String>> inputPermutations = Collections2.permutations(inputs);
+    LOG.debug("Permutations of the inputs: {}", inputPermutations);
     List<DataStream<Event>> streams = new ArrayList<>(2);
 
     // Generate a pattern for every possible input order
     for (List<String> inputPerm : inputPermutations)
       streams.add(
-          generateStream(inputStream, inputPerm.get(0), inputPerm.get(1), queryInfo, num_subquery));
+          generateStream(
+              inputStream,
+              inputPerm.get(0),
+              inputPerm.get(1),
+              queryInfo,
+              multisinkQuery,
+              num_subquery));
 
     DataStream<Event> output = inputStream;
     for (DataStream<Event> s : streams) output = output.union(s);
@@ -111,7 +130,15 @@ public class PatternFactory_generic {
       String firstEventType,
       String secondEventType,
       NodeConfig.Processing q,
+      String multisinkQuery,
       final int num_subquery) {
+    LOG.debug(
+        "Generating pattern for query {} subquery {} with first event type {} and second event type"
+            + " {}",
+        q.queryName,
+        num_subquery,
+        firstEventType,
+        secondEventType);
     final long TIME_WINDOW_SIZE_US = q.timeWindowSize * 1_000_000;
     List<List<String>> sequence_constraints = q.sequenceConstraints.get(num_subquery);
     List<String> idConstraints = q.idConstraints.get(num_subquery);
@@ -121,12 +148,17 @@ public class PatternFactory_generic {
         "pattern_q" + queryCounter + "_sq" + num_subquery + "_" + firstEventType;
     final String firstPatternName = patternBaseName + "_0";
     final String secondPatternName = patternBaseName + "_1";
+    LOG.debug("patternBaseName: {}", patternBaseName);
+    LOG.debug("firstPatternName: {}", firstPatternName);
+    LOG.debug("secondPatternName: {}", secondPatternName);
 
     Pattern<Event, Event> p =
         Pattern.<Event>begin(firstPatternName)
             .where(checkEventType(firstEventType)) // get first event type
+            .where(filterForMultisinkQuery(q.queryName, multisinkQuery))
             .followedByAny(secondPatternName)
             .where(checkEventType(secondEventType)) // get second event type
+            .where(filterForMultisinkQuery(q.queryName, multisinkQuery))
             .where(
                 new IterativeCondition<Event>() { // Check timestamps, sequence and id constraints
                   long seed = 12345L;
@@ -191,6 +223,18 @@ public class PatternFactory_generic {
             .within(Time.milliseconds(TIME_WINDOW_SIZE_US));
 
     PatternStream<Event> matchStream = CEP.pattern(input, p);
+
+    /* DEBUGGING REMOVE WHEN DONE */
+    matchStream.flatSelect(
+        new PatternFlatSelectFunction<Event, Event>() {
+          @Override
+          public void flatSelect(Map<String, List<Event>> patternMatches, Collector<Event> out)
+              throws Exception {
+            LOG.debug("Matches found: " + patternMatches);
+          }
+        });
+    /* DEBUGGING REMOVE WHEN DONE */
+
     DataStream<Event> outputStream =
         matchStream.select(
             new PatternSelectFunction<Event, Event>() {
@@ -242,6 +286,23 @@ public class PatternFactory_generic {
         }
 
         return eventType.equals(e.getEventType());
+      }
+    };
+  }
+
+  // check if processed query is multi-sink and if it's enabled for this event
+  public static SimpleCondition<Event> filterForMultisinkQuery(
+      String currentQuery, String multisinkQuery) {
+    return new SimpleCondition<Event>() {
+      @Override
+      public boolean filter(Event event) {
+        if (currentQuery.equals(multisinkQuery)) {
+          LOG.debug("Processing event for multi-sink query: {}", multisinkQuery);
+          LOG.debug("Event: {}", event);
+          if (event.multiSinkQueryEnabled) return true;
+          else return false;
+        }
+        return true;
       }
     };
   }

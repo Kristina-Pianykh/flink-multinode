@@ -16,6 +16,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -27,12 +28,12 @@ import org.slf4j.LoggerFactory;
 public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>> {
   private static final Logger LOG = LoggerFactory.getLogger(OldSourceFunction.class);
   public NodeConfig config;
-  private volatile boolean isCancelled = false;
-  public static boolean multiSinkQueryEnabled = false;
   public static Optional<Long> driftTimestamp = Optional.empty();
   public static Optional<Long> shiftTimestamp = Optional.empty();
   private BlockingQueue<Tuple2<Integer, Message>> parsedMessageStream;
   public Set<Event> partEventBuffer = new HashSet<>();
+  private volatile boolean isCancelled = false;
+  public static AtomicBoolean multiSinkQueryEnabled = new AtomicBoolean(true);
 
   // private final int port;
 
@@ -151,7 +152,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
 
           try {
             ScheduledTask scheduledPartEventBufferFlush =
-                new ScheduledTask(this.partEventBuffer, this.config);
+                new ScheduledTask(this.partEventBuffer, this.config, multiSinkQueryEnabled);
             ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
             scheduledExecutorService.schedule(
                 scheduledPartEventBufferFlush,
@@ -260,7 +261,9 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           LOG.info("Client " + client_address + " introduced itself as node " + client_node_id);
 
         } else if (message.contains("|")) {
+          LOG.debug("multiSinkQueryEnabled flag: {}", multiSinkQueryEnabled);
           Event event = Event.parse(message);
+          event.setMultiSinkQueryEnabled(multiSinkQueryEnabled.get());
           parsedMessageStream.put(new Tuple2<>(client_node_id, event));
 
         } else {

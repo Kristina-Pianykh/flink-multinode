@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,13 +17,16 @@ public class ScheduledTask implements Runnable {
   public NodeConfig config;
   public Set<Event> eventBuffer;
   public String eventType;
+  public AtomicBoolean multiSinkQueryEnabled;
   public HashMap<Integer, Tuple2<Socket, PrintWriter>> dstSocketWriterMap;
   private static final Logger LOG = LoggerFactory.getLogger(ScheduledTask.class);
 
-  public ScheduledTask(Set<Event> eventBuffer, NodeConfig config) {
+  public ScheduledTask(
+      Set<Event> eventBuffer, NodeConfig config, AtomicBoolean multiSinkQueryEnabled) {
     this.eventBuffer = eventBuffer;
     this.config = config;
     this.eventType = this.config.rateMonitoringInputs.partitioningInput;
+    this.multiSinkQueryEnabled = multiSinkQueryEnabled;
     LOG.info("initializing socket writer map");
     try {
       initSocketWriterMap(this.eventType);
@@ -92,8 +96,16 @@ public class ScheduledTask implements Runnable {
   @Override
   public void run() {
     LOG.info("Updating forwarding table...");
-    LOG.info("Forwarding table before update: {}", this.config.forwarding.table.toString());
+    LOG.debug("Forwarding table before update: {}", this.config.forwarding.table.toString());
     this.config.forwarding.table = this.config.forwarding.updatedTable;
+
+    LOG.debug("multiSinkQueryEnabled before update: {}", this.multiSinkQueryEnabled.get());
+    this.multiSinkQueryEnabled.set(false);
+    LOG.debug("multiSinkQueryEnabled after update: {}", this.multiSinkQueryEnabled.get());
+    LOG.info(
+        "Multi-Sink query {} disabled on the current node {}",
+        this.config.rateMonitoringInputs.multiSinkQuery,
+        this.config.nodeId);
 
     try {
       assert this.config.forwarding.table.equals(this.config.forwarding.updatedTable);
