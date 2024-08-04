@@ -2,16 +2,16 @@ package com.huberlin.event;
 
 // package com.huberlin;
 
-import java.time.LocalTime;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class Event extends Message {
 
-  private static final Logger log = LoggerFactory.getLogger(Event.class);
+  private static final Logger LOG = LoggerFactory.getLogger(Event.class);
   boolean is_simple;
   public String eventType;
+  public boolean multiSinkQueryEnabled = true;
 
   // -------------------- Getter/Setter --------------------
 
@@ -25,6 +25,10 @@ public abstract class Event extends Message {
   }
 
   public abstract ArrayList<SimpleEvent> getContainedSimpleEvents();
+
+  public void setMultiSinkQueryEnabled(boolean multiSinkQueryEnabled) {
+    this.multiSinkQueryEnabled = multiSinkQueryEnabled;
+  }
 
   /**
    * Get the timestamp used for watermarking
@@ -134,7 +138,6 @@ public abstract class Event extends Message {
     }
     return events;
   }
-
 
   /**
    * Returns a HashSet containing the simple event types in the given complex event type.
