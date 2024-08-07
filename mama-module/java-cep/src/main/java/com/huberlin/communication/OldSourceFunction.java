@@ -128,6 +128,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           if (config.rateMonitoringInputs.isNonFallbackNode(config.nodeId)
               && srcNodeIdEvent.f1.eventType.equals(
                   config.rateMonitoringInputs.partitioningInput)) {
+            srcNodeIdEvent.f1.addAttribute("flushed");
             this.partEventBuffer.add(srcNodeIdEvent.f1);
             LOG.info("Inserted event {} into the nonPartBuffer", srcNodeIdEvent.f1);
           }
@@ -264,6 +265,17 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           LOG.debug("multiSinkQueryEnabled flag: {}", multiSinkQueryEnabled);
           Event event = Event.parse(message);
           event.setMultiSinkQueryEnabled(multiSinkQueryEnabled.get());
+
+          try {
+            assert event.multiSinkQueryEnabled == multiSinkQueryEnabled.get();
+          } catch (AssertionError e) {
+            LOG.error(
+                "multiSinkQueryEnabled flag mismatch for event {} and global flag"
+                    + " multiSinkQueryEnabled {}",
+                event.toString(),
+                multiSinkQueryEnabled.get());
+            e.printStackTrace();
+          }
           parsedMessageStream.put(new Tuple2<>(client_node_id, event));
 
         } else {

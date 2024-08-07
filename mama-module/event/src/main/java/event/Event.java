@@ -12,6 +12,11 @@ public abstract class Event extends Message {
   boolean is_simple;
   public String eventType;
   public boolean multiSinkQueryEnabled = true;
+  public List<String> attributeList;
+
+  public Event(List<String> attributeList) {
+    this.attributeList = attributeList;
+  }
 
   // -------------------- Getter/Setter --------------------
 
@@ -28,6 +33,34 @@ public abstract class Event extends Message {
 
   public void setMultiSinkQueryEnabled(boolean multiSinkQueryEnabled) {
     this.multiSinkQueryEnabled = multiSinkQueryEnabled;
+  }
+
+  public boolean attributeListPresent() {
+    if (attributeList == null) return false;
+    if (attributeList.isEmpty()) return false;
+    return true;
+  }
+
+  public boolean isFlushed() {
+    if (!attributeListPresent()) return false;
+    else {
+      for (String attr : this.attributeList) {
+        if (attr.contains("flushed")) return true;
+      }
+      return false;
+    }
+  }
+
+  public void addAttribute(String attr) {
+    if (this.attributeList == null) {
+      LOG.debug("attributeList = null");
+      this.attributeList = new ArrayList<>();
+      LOG.debug("attributeList initialized");
+      this.attributeList.add(attr);
+      return;
+    }
+    this.attributeList.add(attr);
+    assert this.attributeList.contains(attr);
   }
 
   /**
@@ -64,41 +97,43 @@ public abstract class Event extends Message {
    */
   public static Event parse(String received) {
     String[] receivedParts = received.split("\\|");
-    if (receivedParts[0].trim().equals("simple")) {
-      ArrayList<String> attributeList = new ArrayList<>();
-      if (receivedParts.length > 4)
-        attributeList.addAll(Arrays.asList(receivedParts).subList(4, receivedParts.length));
+    ArrayList<String> attributeList = new ArrayList<>();
+    if (receivedParts.length > 4)
+      attributeList.addAll(Arrays.asList(receivedParts).subList(4, receivedParts.length));
 
-      for (int i = attributeList.size() - 1; i >= 0; i--) {
-        String attribute = attributeList.get(i);
-        String cleanedAttribute = attribute.trim();
+    for (int i = attributeList.size() - 1; i >= 0; i--) {
+      String attribute = attributeList.get(i);
+      String cleanedAttribute = attribute.trim();
 
-        // Check if the cleaned string is empty (only whitespace)
-        if (cleanedAttribute.isEmpty()) {
-          // Remove the element from the list
-          attributeList.remove(i);
-        } else {
-          // Update the original element with the cleaned value
-          attributeList.set(i, cleanedAttribute);
-        }
+      // Check if the cleaned string is empty (only whitespace)
+      if (cleanedAttribute.isEmpty()) {
+        // Remove the element from the list
+        attributeList.remove(i);
+      } else {
+        // Update the original element with the cleaned value
+        attributeList.set(i, cleanedAttribute);
       }
-      // simple event: "simple" | eventID | timestamp | eventType [| possible attributes according
-      // to specific event class: define new parse and constructor]
+    }
+    if (receivedParts[0].trim().equals("simple")) {
+      // simple event: "simple" | eventID | timestamp | eventType | multiSinkQueryEnabled | optional
+      // attributes
       return new SimpleEvent(
           receivedParts[1].trim(), // eventID
           parseTimestamp(receivedParts[2].trim()), // timestamp
           receivedParts[3].trim(), // eventType
+          // multiSinkQueryEnabled,
           attributeList); // attributeList
     } else if (receivedParts[0].trim().equals("complex")) {
       // complex event: "complex" | timestamp [can be creationTime] | eventType | numberOfEvents |
-      // (individual Event);(individual Event)[;...]
+      // (individual Event);(individual Event)[;...] | optional attributes
       long timestamp = parseTimestamp(receivedParts[1].trim());
       String eventType = receivedParts[2].trim();
       int numberOfEvents =
           Integer.parseInt(
               receivedParts[3].trim()); // FIXME: Currently, we don't use this information at all.
       ArrayList<SimpleEvent> eventList = parse_eventlist(receivedParts[4].trim());
-      return new ComplexEvent(timestamp, eventType, eventList);
+      ComplexEvent ce = new ComplexEvent(timestamp, eventType, eventList, attributeList);
+      return ce;
     } else {
       // incomprehensible message
       // message = gpt4.interpretWhatThismeansAndConvertItToMyStandardFormat(message)
@@ -121,19 +156,24 @@ public abstract class Event extends Message {
     for (String event : seperateEvents) {
       event = event.trim(); // remove whitespace
       event = event.substring(1, event.length() - 1); // remove parentheses
-      String[] eventParts = event.split(","); // timestamp, id, type
+      String[] eventParts = event.split(","); // timestamp, id, type, attributes
 
       List<String> attributeList = new ArrayList<>();
       for (int i = 3; i < eventParts.length; i++) {
         attributeList.add(eventParts[i].trim());
       }
 
-      // one Event: (timestamp_hhmmssms , eventID , eventType)
+      if (eventParts.length > 3) {
+        assert (Boolean.valueOf(eventParts[3].trim()) instanceof Boolean);
+      }
+
+      // one Event: (timestamp_hhmmssms , eventID , eventType, multiSinkQueryEnabled)
       events.add(
           new SimpleEvent(
               eventParts[1].trim(),
               parseTimestamp(eventParts[0].trim()),
               eventParts[2].trim(),
+              // Boolean.valueOf(eventParts[3].trim()),
               attributeList));
     }
     return events;

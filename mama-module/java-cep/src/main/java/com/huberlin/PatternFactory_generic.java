@@ -11,7 +11,6 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.flink.cep.CEP;
-import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.pattern.Pattern;
@@ -19,7 +18,6 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,14 +59,21 @@ public class PatternFactory_generic {
   private static long queryCounter = 0;
 
   public static List<DataStream<Event>> processQueries(
-      List<NodeConfig.Processing> allQueries, NodeConfig config, DataStream<Event> inputStream) {
-    LOG.debug("Multisink query: {}", config.rateMonitoringInputs.multiSinkQuery);
+      List<NodeConfig.Processing> allQueries,
+      NodeConfig config,
+      DataStream<Event> inputStream,
+      int windowFactor) {
     List<DataStream<Event>> matchingStreams = new ArrayList<>();
-    for (NodeConfig.Processing q : allQueries) {
+
+    for (int i = 0; i < allQueries.size(); i++) {
+      NodeConfig.Processing q = allQueries.get(i);
+
+      LOG.debug("Inputs: {}", q.inputs);
       try {
-        matchingStreams.add(processQuery(q, config, inputStream));
+        matchingStreams.add(processQuery(q, config, inputStream, windowFactor));
         queryCounter++; // Query counter for patterns
       } catch (Exception e) {
+        LOG.error("Error processing query {}: {}", q.queryName, e);
         throw new RuntimeException(e);
       }
     }
@@ -76,17 +81,20 @@ public class PatternFactory_generic {
   }
 
   public static DataStream<Event> processQuery(
-      NodeConfig.Processing query, NodeConfig config, DataStream<Event> inputStream)
+      NodeConfig.Processing query,
+      NodeConfig config,
+      DataStream<Event> inputStream,
+      int windowFactor)
       throws Exception {
     if (query.subqueries.isEmpty()) {
       throw new Exception("No subqueries defined");
     }
 
     LOG.debug("Number of subqueries for query {}: {}", query.queryName, query.subqueries.size());
-    DataStream<Event> output = processSubquery(0, query, config, inputStream);
+    DataStream<Event> output = processSubquery(0, query, config, inputStream, windowFactor);
 
     for (int i = 1; i < query.subqueries.size(); i++) {
-      output = processSubquery(i, query, config, output);
+      output = processSubquery(i, query, config, output, windowFactor);
     }
 
     return output;
@@ -96,7 +104,8 @@ public class PatternFactory_generic {
       final int num_subquery,
       NodeConfig.Processing queryInfo,
       NodeConfig config,
-      DataStream<Event> inputStream) {
+      DataStream<Event> inputStream,
+      int windowFactor) {
     LOG.debug("Processing subquery {} for query {}", num_subquery, queryInfo.queryName);
     List<String> inputs = queryInfo.inputs.get(num_subquery);
     LOG.debug("Inputs: {}", inputs);
@@ -104,7 +113,7 @@ public class PatternFactory_generic {
     // Get every permutation of inputs (order they could arrive in)
     Collection<List<String>> inputPermutations = Collections2.permutations(inputs);
     LOG.debug("Permutations of the inputs: {}", inputPermutations);
-    List<DataStream<Event>> streams = new ArrayList<>(2);
+    List<DataStream<Event>> streams = new ArrayList<>();
 
     // Generate a pattern for every possible input order
     for (List<String> inputPerm : inputPermutations)
@@ -125,13 +134,14 @@ public class PatternFactory_generic {
       NodeConfig.Processing q,
       NodeConfig config,
       final int num_subquery) {
-    LOG.debug(
-        "Generating pattern for query {} subquery {} with first event type {} and second event type"
-            + " {}",
-        q.queryName,
-        num_subquery,
-        firstEventType,
-        secondEventType);
+    // LOG.debug(
+    //     "Generating pattern for query {} subquery {} with first event type {} and second event
+    // type"
+    //         + " {}",
+    //     q.queryName,
+    //     num_subquery,
+    //     firstEventType,
+    //     secondEventType);
     final long TIME_WINDOW_SIZE_US = q.timeWindowSize * 1_000_000;
     List<List<String>> sequence_constraints = q.sequenceConstraints.get(num_subquery);
     List<String> idConstraints = q.idConstraints.get(num_subquery);
@@ -141,17 +151,18 @@ public class PatternFactory_generic {
         "pattern_q" + queryCounter + "_sq" + num_subquery + "_" + firstEventType;
     final String firstPatternName = patternBaseName + "_0";
     final String secondPatternName = patternBaseName + "_1";
-    LOG.debug("patternBaseName: {}", patternBaseName);
-    LOG.debug("firstPatternName: {}", firstPatternName);
-    LOG.debug("secondPatternName: {}", secondPatternName);
+    // LOG.debug(
+    //     "patternBaseName: {}, firstPatternName: {}, secondPatternName: {}",
+    //     patternBaseName,
+    //     firstPatternName,
+    //     secondPatternName);
 
     Pattern<Event, Event> p =
         Pattern.<Event>begin(firstPatternName)
-            .where(checkEventType(firstEventType)) // get first event type
-            .where(filterForMultisinkQuery(q.queryName, config.rateMonitoringInputs.multiSinkQuery))
+            .where(checkEventTypeFirst(firstEventType, firstPatternName)) // get first event type
             .followedByAny(secondPatternName)
-            .where(checkEventType(secondEventType)) // get second event type
-            .where(filterForMultisinkQuery(q.queryName, config.rateMonitoringInputs.multiSinkQuery))
+            .where(
+                checkEventTypeSecond(secondEventType, secondPatternName)) // get second event type
             .where(
                 new IterativeCondition<Event>() { // Check timestamps, sequence and id constraints
                   long seed = 12345L;
@@ -215,98 +226,7 @@ public class PatternFactory_generic {
                 })
             .within(Time.milliseconds(TIME_WINDOW_SIZE_US));
 
-    if (config.nodeId == config.rateMonitoringInputs.fallbackNode) {
-      LOG.debug(
-          "Creating multi-sink pattern with 2x window size for fallback node {}", config.nodeId);
-      Pattern<Event, Event> multiSinkPatternDoubleWindow =
-          Pattern.<Event>begin(firstPatternName)
-              .where(checkEventType(firstEventType)) // get first event type
-              .where(
-                  filterForMultisinkQuery(q.queryName, config.rateMonitoringInputs.multiSinkQuery))
-              .followedByAny(secondPatternName)
-              .where(checkEventType(secondEventType)) // get second event type
-              .where(
-                  filterForMultisinkQuery(q.queryName, config.rateMonitoringInputs.multiSinkQuery))
-              .where(
-                  new IterativeCondition<Event>() { // Check timestamps, sequence and id constraints
-                    long seed = 12345L;
-                    final Random rand =
-                        new Random(seed); // tmp: seed random stream for reproducibility
-
-                    @Override
-                    public boolean filter(Event new_event, Context<Event> context)
-                        throws Exception {
-                      Thread.sleep(1);
-
-                      if (new_event.getEventType().equals(secondEventType)) {
-                        Iterable<Event> events = context.getEventsForPattern(firstPatternName);
-                        Event old_event = null;
-                        for (Event e : events) {
-                          old_event = e;
-                        }
-
-                        // Check timestamp
-                        if (Math.abs(
-                                    old_event.getHighestTimestamp()
-                                        - new_event.getLowestTimestamp())
-                                > TIME_WINDOW_SIZE_US
-                            || Math.abs(
-                                    new_event.getHighestTimestamp()
-                                        - old_event.getLowestTimestamp())
-                                > TIME_WINDOW_SIZE_US) return false;
-
-                        // Check selectivity
-                        if (rand.nextDouble() > selectivity) return false;
-
-                        // Check id constraint
-                        for (String idConstraint : idConstraints) {
-                          if (!old_event
-                              .getEventIdOf(idConstraint)
-                              .equals(new_event.getEventIdOf(idConstraint))) return false;
-                        }
-
-                        // Check sequence constraint (first > last or first < last)
-                        // No sequence constraints = AND
-                        for (List<String> sequence_constraint : sequence_constraints) {
-                          String first_eventtype = sequence_constraint.get(0);
-                          String second_eventtype = sequence_constraint.get(1);
-
-                          // Sequence constraint check (for both directions)
-                          if (old_event.getTimestampOf(first_eventtype) != null
-                              && new_event.getTimestampOf(second_eventtype) != null
-                              && old_event.getTimestampOf(first_eventtype)
-                                  >= new_event.getTimestampOf(second_eventtype)) {
-                            return false;
-                          }
-
-                          if (new_event.getTimestampOf(first_eventtype) != null
-                              && old_event.getTimestampOf(second_eventtype) != null
-                              && new_event.getTimestampOf(first_eventtype)
-                                  >= old_event.getTimestampOf(second_eventtype)) {
-                            return false;
-                          }
-                        }
-                        return true; // Everything done
-                      } else {
-                        return false; // Not even the right type
-                      }
-                    }
-                  })
-              .within(Time.milliseconds(2 * TIME_WINDOW_SIZE_US));
-    }
-
     PatternStream<Event> matchStream = CEP.pattern(input, p);
-
-    /* DEBUGGING REMOVE WHEN DONE */
-    matchStream.flatSelect(
-        new PatternFlatSelectFunction<Event, Event>() {
-          @Override
-          public void flatSelect(Map<String, List<Event>> patternMatches, Collector<Event> out)
-              throws Exception {
-            LOG.debug("Matches found: " + patternMatches);
-          }
-        });
-    /* DEBUGGING REMOVE WHEN DONE */
 
     DataStream<Event> outputStream =
         matchStream.select(
@@ -336,8 +256,9 @@ public class PatternFactory_generic {
                         / 1000L); // FIXME: What if it is almost midnight? Then the monsters come
                 // out!
                 ComplexEvent new_complex_event =
-                    new ComplexEvent(creation_time, q.subqueries.get(num_subquery), newEventList);
-                System.out.println(new_complex_event);
+                    new ComplexEvent(
+                        creation_time, q.subqueries.get(num_subquery), newEventList, null);
+                LOG.info("Complex event created: {}", new_complex_event);
                 return (Event) new_complex_event;
               }
             });
@@ -345,7 +266,7 @@ public class PatternFactory_generic {
     return outputStream;
   }
 
-  public static SimpleCondition<Event> checkEventType(String eventType) {
+  public static SimpleCondition<Event> checkEventTypeFirst(String eventType, String patternName) {
     return new SimpleCondition<Event>() {
       String latest_eventID = "";
 
@@ -357,25 +278,40 @@ public class PatternFactory_generic {
           latest_eventID = simp_eventID;
           timestamp_counter.incrementAndGet();
         }
+        // LOG.debug(
+        //     "checkEventTypeSecond() for eventType: {}; e.getEventType: {}; patternName: {},"
+        //         + " eventType.equals(e.getEventType()): {}",
+        //     eventType,
+        //     e.getEventType(),
+        //     patternName,
+        //     eventType.equals(e.getEventType()));
 
         return eventType.equals(e.getEventType());
       }
     };
   }
 
-  // check if processed query is multi-sink and if it's enabled for this event
-  public static SimpleCondition<Event> filterForMultisinkQuery(
-      String currentQuery, String multisinkQuery) {
+  public static SimpleCondition<Event> checkEventTypeSecond(String eventType, String patternName) {
     return new SimpleCondition<Event>() {
+      String latest_eventID = "";
+
       @Override
-      public boolean filter(Event event) {
-        if (currentQuery.equals(multisinkQuery)) {
-          LOG.debug("Processing event for multi-sink query: {}", multisinkQuery);
-          LOG.debug("Event: {}", event);
-          if (event.multiSinkQueryEnabled) return true;
-          else return false;
+      public boolean filter(Event e) {
+        String simp_eventID = e.getID();
+
+        if (!simp_eventID.equals(latest_eventID)) {
+          latest_eventID = simp_eventID;
+          timestamp_counter.incrementAndGet();
         }
-        return true;
+        // LOG.debug(
+        //     "checkEventTypeSecond() for eventType: {}; e.getEventType: {}; patternName: {},"
+        //         + " eventType.equals(e.getEventType()): {}",
+        //     eventType,
+        //     e.getEventType(),
+        //     patternName,
+        //     eventType.equals(e.getEventType()));
+
+        return eventType.equals(e.getEventType());
       }
     };
   }

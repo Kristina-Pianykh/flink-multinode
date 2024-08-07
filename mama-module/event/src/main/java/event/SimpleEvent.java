@@ -1,25 +1,42 @@
 package com.huberlin.event;
 
-// package com.huberlin;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SimpleEvent extends Event implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleEvent.class);
   private static final long serialVersionUID = 1L; // Add a serialVersionUID for Serializable class
   String eventID;
   public final long timestamp;
-  public List<String> attributeList;
 
-  //    public String eventType;
   public SimpleEvent(String eventID, long timestamp, String eventType, List<String> attributeList) {
+    super(attributeList);
+    if (attributeListPresent()) {
+      try {
+        assert (this.attributeList.size() >= 0);
+        Boolean multiSinkQueryEnabled = Boolean.valueOf(this.attributeList.remove(0));
+        assert (multiSinkQueryEnabled.getClass() == Boolean.class);
+        this.multiSinkQueryEnabled = multiSinkQueryEnabled;
+      } catch (AssertionError e) {
+        LOG.error(
+            "Function call new SimpleEvent({}, {}, {}, {}) failed. Assertions about attributeList"
+                + " in SimpleEvent constructor failed with {}",
+            eventID,
+            timestamp,
+            eventType,
+            attributeList,
+            e);
+        throw e;
+      }
+    }
     this.is_simple = true;
     this.eventType = eventType;
     this.eventID = eventID;
     this.timestamp = timestamp;
     assert (eventType != null);
-    this.attributeList = attributeList;
   }
 
   @Override
@@ -73,9 +90,9 @@ public class SimpleEvent extends Event implements Serializable {
     eventString.append(" | ").append(this.eventID);
     eventString.append(" | ").append(formatTimestamp(this.timestamp));
     eventString.append(" | ").append(this.eventType);
+    eventString.append(" | ").append(this.multiSinkQueryEnabled);
     for (String attributeValue : this.attributeList)
       eventString.append(" | ").append(attributeValue);
-    eventString.append(" | ").append("multiSinkQueryEnabled=").append(this.multiSinkQueryEnabled);
     return eventString.toString();
   }
 
