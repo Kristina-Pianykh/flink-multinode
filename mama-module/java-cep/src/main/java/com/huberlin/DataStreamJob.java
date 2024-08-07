@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DataStreamJob {
-  private static final Logger log = LoggerFactory.getLogger(DataStreamJob.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DataStreamJob.class);
 
   private static CommandLine parse_cmdline_args(String[] args) {
     final Options cmdline_opts = new Options();
@@ -51,16 +51,12 @@ public class DataStreamJob {
   }
 
   public static void main(String[] args) throws Exception {
-    // Parse command line arguments
-
     CommandLine cmd = parse_cmdline_args(args);
 
-    // Read global and local configuration files, and create config object ('QueryInformation')
-    String filePath_local = cmd.getOptionValue("localconfig", "./conf/config.json"); // local config
-    String filePath_global =
-        cmd.getOptionValue("globalconfig", "./conf/address_book.json"); // global config
-    String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs", null); // local config
-    String updatedForwardingRulesPath = cmd.getOptionValue("updatedrules", null); // local config
+    String filePath_local = cmd.getOptionValue("localconfig", "./conf/config.json");
+    String filePath_global = cmd.getOptionValue("globalconfig", "./conf/address_book.json");
+    String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs", null);
+    String updatedForwardingRulesPath = cmd.getOptionValue("updatedrules", null);
     assert rateMonitoringInputsPath != null : "Path for rate monitoring inputs is not set";
     assert updatedForwardingRulesPath != null
         : "Path for the file with the updated forwarding rules is not set";
@@ -70,10 +66,8 @@ public class DataStreamJob {
         filePath_local, filePath_global, rateMonitoringInputsPath, updatedForwardingRulesPath);
     if (config != null) {
       System.out.println("Parsed JSON successfully");
-      // You can now access the data structure's attributes, e.g., data.forwarding.send_mode or
-      // data.processing.selectivity
     } else {
-      log.error("Failed to parse JSON");
+      LOG.error("Failed to parse JSON");
       System.exit(1);
     }
 
@@ -82,12 +76,6 @@ public class DataStreamJob {
         "Destinations for partitioning input in the updated forwarding table: "
             + "\n    "
             + config.forwarding.updatedTable.lookupUpdated(partInput));
-    // for (int i = 0; i <= 5; i++) {
-    //   SortedSet<Integer> dest = config.forwarding.updatedTable.lookup(partInput, i);
-    //   System.out.println("Partionionin input " + partInput + " goes to " + dest);
-    // }
-    // SortedSet<Integer> dest = config.forwarding.updatedTable.lookup(partInput, null);
-    // System.out.println("Partionionin input " + partInput + " goes to " + dest);
 
     final int REST_PORT = 8081 + config.nodeId * 2;
     Configuration flinkConfig =
@@ -100,7 +88,6 @@ public class DataStreamJob {
     flinkConfig.set(TaskManagerOptions.RPC_PORT, "0");
     flinkConfig.set(BlobServerOptions.PORT, "0");
 
-    // Set up flink;
     StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(flinkConfig);
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
     FileSystem.initialize(flinkConfig);
@@ -108,10 +95,88 @@ public class DataStreamJob {
     // Only one engine-thread will work (output is displayed in the same way the packets arrive)
     env.setParallelism(1);
 
-    // find out if outputselection is used, if yes, change the ids of the events that are selected
-    // for the match
-
     DataStream<Tuple2<Integer, Event>> inputStream = env.addSource(new OldSourceFunction(config));
+
+    /* for fallback node only: filter out the non-partitioning inputs for
+    to apply a pattern with 2x window size for retrospective matching
+    with the fluahed partitioning inputs (once only) */
+    // if (config.nodeId == config.rateMonitoringInputs.fallbackNode) {
+    //   LOG.debug("I am the fallback node");
+    //   DataStream<Tuple2<Integer, Event>> nonPartitioningInputStream =
+    //       inputStream.filter(
+    //           new FilterFunction<Tuple2<Integer, Event>>() {
+    //
+    //             @Override
+    //             public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
+    //               Event event = srcIdEvent.f1;
+    //               LOG.debug(
+    //                   "Event {} is non-partitioning: {}",
+    //                   event.getEventType(),
+    //                   config.rateMonitoringInputs.nonPartitioningInputs.contains(
+    //                       event.getEventType()));
+    //               if (config.rateMonitoringInputs.nonPartitioningInputs.contains(
+    //                   event.getEventType())) {
+    //                 LOG.debug("Filtered out a non-partitioning input: {}", event.toString());
+    //                 return true;
+    //               }
+    //               return false;
+    //             }
+    //           });
+    //
+    //   DataStream<Tuple2<Integer, Event>> flushedPartitioningInputsStream =
+    //       inputStream.filter(
+    //           new FilterFunction<Tuple2<Integer, Event>>() {
+    //
+    //             @Override
+    //             public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
+    //               Event event = srcIdEvent.f1;
+    //               boolean isPartitioningInput =
+    //                   config.rateMonitoringInputs.partitioningInput.equals(event.getEventType());
+    //               boolean isFlushedEvent = event.isFlushed();
+    //               if (isFlushedEvent) {
+    //                 LOG.debug("Detected flushed event: {}", event);
+    //                 LOG.debug("isPartitioningInput = {}", isPartitioningInput);
+    //                 LOG.debug("isFlushedEvent = {}", isFlushedEvent);
+    //               }
+    //               if (isPartitioningInput && isFlushedEvent) return true;
+    //               else return false;
+    //             }
+    //           });
+    //
+    //   DataStream<Tuple2<Integer, Event>> shiftMultiSinkQueryInputs =
+    //       nonPartitioningInputStream.union(flushedPartitioningInputsStream);
+    //
+    //   /* DEBUGGING STEP */
+    //   List<NodeConfig.Processing> queries =
+    //       config.processing.stream()
+    //           .filter(q -> q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery))
+    //           .collect(Collectors.toList());
+    //   try {
+    //     assert queries.size() == 1;
+    //     assert queries.get(0).queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
+    //     LOG.debug(
+    //         "Found multi-sink query {} on the fallback node {}",
+    //         queries.get(0).queryName,
+    //         config.nodeId);
+    //   } catch (AssertionError e) {
+    //     LOG.error("Assertions about queries failed with: {}", e.getMessage());
+    //     System.exit(1);
+    //   }
+    //   /* DEBUGGING STEP */
+    //
+    //   DataStream<Event> matchedMultiSinkQueryOutput =
+    //       PatternFactory_generic.processQuery(
+    //           queries.get(0), config, shiftMultiSinkQueryInputs.map((tuple) -> tuple.f1), 2);
+    //
+    //   matchedMultiSinkQueryOutput.filter(
+    //       new FilterFunction<Event>() {
+    //         @Override
+    //         public boolean filter(Event event) {
+    //           LOG.debug("Event matched retrospectively: {}", event);
+    //           return true;
+    //         }
+    //       });
+    // }
 
     // important check if node is one of the multi-sink nodes
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
@@ -123,6 +188,7 @@ public class DataStreamJob {
               config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)));
     }
 
+    // TODO: remove this block?
     SingleOutputStreamOperator<Tuple2<Integer, Event>> monitored_stream =
         inputStream
             .map(
@@ -169,9 +235,7 @@ public class DataStreamJob {
 
     List<DataStream<Event>> outputstreams_by_query =
         PatternFactory_generic.processQueries(
-            config.processing,
-            config,
-            inputStream.map((tuple) -> tuple.f1)); // input stream w/o source information
+            config.processing, config, inputStream.map((tuple) -> tuple.f1), 1);
 
     if (!outputstreams_by_query.isEmpty()) {
       outputstreams_by_query.forEach(

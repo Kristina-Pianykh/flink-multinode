@@ -17,16 +17,19 @@ public class ComplexEvent extends Event implements Serializable {
   // The following fields are redundant (derived from the data above)
   // Since events are not mutated once created this cannot become inconsistent
   // All data access from flinkCEP iterative conditions should avoid computations, because it's
-  // liable to be massively repeated,
-  // so add a field here andcompute it in the constructor. Avoid using these fields outside
-  // flinkcep, it's just going to make refactoring annoying
+  // liable to be massively repeated, so add a field here andcompute it in the constructor.
   public final HashMap<String, Long> eventTypeToTimestamp;
   private final HashMap<String, String> eventTypeToEventID;
   private final long creation_timestamp;
   private final long highestTimestamp;
   private final long lowestTimestamp;
 
-  public ComplexEvent(long creationTimestamp, String eventType, ArrayList<SimpleEvent> eventList) {
+  public ComplexEvent(
+      long creationTimestamp,
+      String eventType,
+      ArrayList<SimpleEvent> eventList,
+      List<String> attributeList) {
+    super(attributeList);
     this.is_simple = false;
     this.creation_timestamp = creationTimestamp;
     this.eventType = eventType; // and[A_B] | and[A_B_seq[C_D]]  bzw nur  and[A_B_seq[C_D]]
@@ -49,15 +52,15 @@ public class ComplexEvent extends Event implements Serializable {
     this.highestTimestamp = highest_timestamp;
     this.lowestTimestamp = lowest_timestamp;
     this.eventID = event_ID;
-    this.setMultiSinkQueryEnabled(this.multiSinkQueryEnabledForAllSimpleEvents());
+    this.multiSinkQueryEnabled = multiSinkQueryEnabledForAllSimpleEvents(this.eventList);
   }
 
   public int getNumberOfEvents() {
     return this.eventList.size();
   }
 
-  private boolean multiSinkQueryEnabledForAllSimpleEvents() {
-    return this.eventList.stream().allMatch(e -> e.multiSinkQueryEnabled);
+  private static boolean multiSinkQueryEnabledForAllSimpleEvents(ArrayList<SimpleEvent> eventList) {
+    return eventList.stream().allMatch(e -> e.multiSinkQueryEnabled);
   }
 
   public String getID() {
@@ -132,6 +135,7 @@ public class ComplexEvent extends Event implements Serializable {
     eventString.append(" | ").append(this.eventType);
     eventString.append(" | ").append(this.getNumberOfEvents());
     eventString.append(" | ");
+
     for (int i = 0; i < eventList.size(); i++) {
       SimpleEvent e = this.eventList.get(i);
       eventString
@@ -143,12 +147,20 @@ public class ComplexEvent extends Event implements Serializable {
           .append(e.eventType)
           .append(", ")
           .append(e.multiSinkQueryEnabled);
-      for (String attributeValue : e.attributeList) eventString.append(", ").append(attributeValue);
+      for (String attributeValue : e.attributeList) {
+        eventString.append(", ").append(attributeValue);
+      }
       eventString.append(")");
       if (i < this.getNumberOfEvents() - 1) // no ";" after last event in the list
       eventString.append(" ;");
     }
-    eventString.append(" | ").append("multiSinkQueryEnabled=").append(this.multiSinkQueryEnabled);
+
+    eventString.append(" | ").append(this.multiSinkQueryEnabled);
+
+    if (this.attributeListPresent()) {
+      for (String attributeValue : this.attributeList)
+        eventString.append(" | ").append(attributeValue);
+    }
 
     return eventString.toString();
   }
