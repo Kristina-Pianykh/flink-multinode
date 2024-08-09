@@ -119,7 +119,13 @@ public class PatternFactory_generic {
     for (List<String> inputPerm : inputPermutations)
       streams.add(
           generateStream(
-              inputStream, inputPerm.get(0), inputPerm.get(1), queryInfo, config, num_subquery));
+              inputStream,
+              inputPerm.get(0),
+              inputPerm.get(1),
+              queryInfo,
+              config,
+              windowFactor,
+              num_subquery));
 
     DataStream<Event> output = inputStream;
     for (DataStream<Event> s : streams) output = output.union(s);
@@ -133,6 +139,7 @@ public class PatternFactory_generic {
       String secondEventType,
       NodeConfig.Processing q,
       NodeConfig config,
+      int windowFactor,
       final int num_subquery) {
     // LOG.debug(
     //     "Generating pattern for query {} subquery {} with first event type {} and second event
@@ -224,7 +231,7 @@ public class PatternFactory_generic {
                     }
                   }
                 })
-            .within(Time.milliseconds(TIME_WINDOW_SIZE_US));
+            .within(Time.milliseconds(windowFactor * TIME_WINDOW_SIZE_US));
 
     PatternStream<Event> matchStream = CEP.pattern(input, p);
 
