@@ -102,17 +102,24 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           LOG.trace("Watermark: " + timestamp_us);
         }
 
+        Long currentTime = TimeUtils.getCurrentTimeInMicroseconds();
         boolean beforeShiftTime =
-            TimeUtils.getCurrentTimeInMicroseconds()
+            currentTime
                 < shiftTimestamp.orElse(
                     0L); // 0L for when timestampts are not set yet and to avoid yet another if-else
         boolean isTransitionPhase =
             driftTimestamp.isPresent()
                 && (!shiftTimestamp.isPresent() || (shiftTimestamp.isPresent() && beforeShiftTime));
-        LOG.debug("beforeShiftTime = {}", beforeShiftTime);
-        LOG.debug("driftTimestamp.isPresent() = {}", driftTimestamp.isPresent());
-        LOG.debug("shiftTimestamp.isPresent() = {}", shiftTimestamp.isPresent());
-        LOG.debug("isTransitionPhase = {}", isTransitionPhase);
+        LOG.debug(
+            "currentTime = {}; shiftTimestamp.orElse(0L) = {}; beforeShiftTime = {};"
+                + " driftTimestamp.isPresent() = {}; shiftTimestamp.isPresent() = {};"
+                + " isTransitionPhase = {}",
+            currentTime,
+            shiftTimestamp.orElse(0L),
+            beforeShiftTime,
+            driftTimestamp.isPresent(),
+            shiftTimestamp.isPresent(),
+            isTransitionPhase);
 
         if (isTransitionPhase) {
           // TODO: make sure the buffer is cleared for GC after the shift (it's cleared in the
