@@ -23,6 +23,7 @@ public class MonitoringData implements Runnable {
   HashMap<String, Double> matchRates = new HashMap<>();
   HashMap<String, Integer> nodesPerItem = new HashMap<>();
   HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
+  int nodeId;
   int nodePort;
   int coordinatorPort;
 
@@ -30,6 +31,7 @@ public class MonitoringData implements Runnable {
       BlockingEventBuffer buffer,
       RateMonitoringInputs rateMonitoringInputs,
       HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates,
+      int nodeId,
       int nodePort,
       int coordinatorPort) {
     this.totalRates = totalRates;
@@ -58,6 +60,7 @@ public class MonitoringData implements Runnable {
         (k, v) -> {
           System.out.println("Item: " + k + " Nodes: " + v);
         });
+    this.nodeId = nodeId;
     this.nodePort = nodePort;
     this.coordinatorPort = coordinatorPort;
   }
@@ -186,9 +189,9 @@ public class MonitoringData implements Runnable {
     try {
       Socket socket = new Socket("localhost", port);
       PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+      writer.println("I am " + this.nodeId + " monitor");
       writer.println(controlEvent.toString());
       writer.println("end-of-the-stream\n");
-      writer.flush();
       writer.close();
       socket.close();
       System.out.println("Sent control event: " + controlEvent.toString() + " to port " + port);

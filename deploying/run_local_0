@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+BASE_DIR=$(realpath "$(dirname "$0")"/..)
+JAVA_BASE_DIR="$BASE_DIR/mama-module"
+JAVA_PROJ_DIR="$BASE_DIR/mama-module/java-cep"
+PY_DIR="$BASE_DIR/python"
+DEPLOYING_DIR="$BASE_DIR/deploying"
+MONITORING_DIR="$BASE_DIR/mama-module/monitoring"
+INFLATED_RATES=0
+
+wait_until_middle_of_minute() {
+  seconds_on_clock=$(date "+%-S")
+  time_to_30s=$(( (( 30 - seconds_on_clock ) + 60 ) % 60 ))
+  sleep $time_to_30s
+}
+
+usage() {
+  echo "Usage: run [OPTIONS] INPUT_DIR N [RUN_DURATION]";
+  echo "Deploys configs and runs all nodes."
+  echo "INPUT_DIR: path to a folder with config_i.json and trace_i.json for each node i";
+  echo "N: number of nodes";
+  echo "RUN_DURATION: sleep time, i.e. expected duration (default is 10m)";
+  echo "";
+  echo "Options:";
+  echo "  -i: Flag that enables inflated rates";
+}
+
+# Process options
+while getopts ":i" opt; do
+  case $opt in
+    i)
+      INFLATED_RATES=1
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+# Shift off the options and optional --
+shift $((OPTIND - 1))
+
+if (( $# < 2 )); then
+  usage
+  exit 1
+else
+  INPUT_DIR="$(realpath $1)"
+  N_NODES=$(($2))
+  RUN_DURATION_MIN=${3:-10}  # Use the third argument, or set default value
+fi;
+
+if (( INFLATED_RATES == 1 )); then
+  echo "Sending inflated rates"
+  TRACE_DIR="$INPUT_DIR/inflated_trace"
+else
+  echo "Sending regular rates"
+  TRACE_DIR="$INPUT_DIR/trace"
+fi;
+echo "Path to the trace dir: $TRACE_DIR"
+
+#build the jar
+# cd $JAVA_BASE_DIR && mvn -pl java-cep clean package && cd $DEPLOYING_DIR
+
+#start all nodes
+JAR="$JAVA_PROJ_DIR/target/java-cep-1.0-SNAPSHOT.jar"
+
+RESULTS_DIR=$INPUT_DIR
+ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
+
+# start monitors
+# $MONITORING_DIR/start_monitoring.sh
+
+i=0
+for ((i=0; i<2; i++)); do
+  echo "starting $i"
+  java -ea --add-opens java.base/java.lang=ALL-UNNAMED \
+           --add-opens=java.base/java.net=ALL-UNNAMED \
+           --add-opens=java.base/java.util=ALL-UNNAMED \
+            -jar "$JAR" \
+            -flinkconfig "$JAVA_PROJ_DIR/conf" \
+            -localconfig "$INPUT_DIR/config_$i.json" \
+            -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
+            -monitoringinputs "$INPUT_DIR/inequality_inputs.json" \
+            -updatedrules "$INPUT_DIR/updated_forwared_rules.json" \
+             | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
+             # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
+done;
+
+#check that all processes are running
+
+echo "waiting 10 sec for all nodes to start up..."
+sleep 10
+wait_until_middle_of_minute
+
+#start input srcs
+rm $RESULTS_DIR/py.log
+rm $RESULTS_DIR/py.err
+# echo starting inputs on "$i"
+# # TODO: read the ports of the nodes from the config file
+# nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$TRACE_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >>"$RESULTS_DIR/py.log" 2>>"$RESULTS_DIR/py.err" &
+# nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" -p $((5500+i)) >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+#
+sleep  $((60 * RUN_DURATION_MIN))
+mkdir "$RESULTS_DIR/mem_usage"
+mkdir "$RESULTS_DIR/throughput"
+# mv mem* "$RESULTS_DIR/mem_usage"
+# mv through* "$RESULTS_DIR/throughput"
+
+#wait for process termination
+# killall -9 java
+ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
+#clean up ugly empty log files
+#find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
