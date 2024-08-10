@@ -75,7 +75,13 @@ public class Monitor {
 
     BlockingEventBuffer buffer = new BlockingEventBuffer(queueSize);
     new Thread(
-            new MonitoringData(buffer, rateMonitoringInputs, totalRates, nodePort, coordinatorPort))
+            new MonitoringData(
+                buffer,
+                rateMonitoringInputs,
+                totalRates,
+                Integer.parseInt(nodeId),
+                nodePort,
+                coordinatorPort))
         .start();
 
     try (ServerSocket serverSocket = new ServerSocket(monitorPort)) {

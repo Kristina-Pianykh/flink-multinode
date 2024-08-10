@@ -54,9 +54,21 @@ class GeneralTest {
         (SimpleEvent) Event.parse("simple | c46c099b | 18:38:45:000000 | D | true");
     SimpleEvent simpleEvent3 =
         (SimpleEvent) Event.parse("simple | c46c099b | 18:38:45:000000 | D | false");
-    // System.out.println("Before adding the attribute 'flushed': " + simpleEvent1.toString());
-    // simpleEvent1.addAttribute("flushed");
-    // System.out.println(simpleEvent1.attributeList);
+    ComplexEvent ce =
+        (ComplexEvent)
+            Event.parse(
+                "complex | 21:23:44:253694 | SEQ(F, E) | 2 | (21:23:09:000000, 374735, F, true)"
+                    + " ;(21:23:44:000000, f9bb6169, E, true) | true | (21:23:09:000000, 374735, F,"
+                    + " true) ;(21:23:44:000000, f9bb6169, E, true) | true");
+
+    System.out.println("Before adding the attribute 'flushed': " + simpleEvent1.toString());
+    simpleEvent1.addAttribute("flushed");
+    System.out.println("After adding the attribute 'flushed': " + simpleEvent1.toString());
+
+    System.out.println("Before adding the attribute 'flushed': " + ce.toString());
+    ce.addAttribute("flushed");
+    System.out.println("After adding the attribute 'flushed': " + ce.toString());
+
     System.out.println(
         "simpleEvent1.multiSinkQueryEnabled before change: " + simpleEvent1.multiSinkQueryEnabled);
     simpleEvent1.setMultiSinkQueryEnabled(false);

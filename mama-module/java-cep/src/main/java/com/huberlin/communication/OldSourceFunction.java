@@ -66,26 +66,6 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
       List<Class> eventClasses = Arrays.asList(SimpleEvent.class, ComplexEvent.class, Event.class);
       if (eventClasses.contains(srcNodeIdMessage.f1.getClass())) {
 
-        /////////// DEBUGGING////////////
-        // try {
-        //   ScheduledTask scheduledPartEventBufferFlush =
-        //       new ScheduledTask(
-        //           this.partEventBuffer,
-        //           this.addressBook,
-        //           this.updatedFwdTable,
-        //           this.nodeId,
-        //           this.rateMonitoringInputs.partitioningInput);
-        //   ScheduledExecutorService scheduledExecutorService =
-        // Executors.newScheduledThreadPool(1);
-        //   scheduledExecutorService.schedule(
-        //       scheduledPartEventBufferFlush, 5, java.util.concurrent.TimeUnit.SECONDS);
-        //   LOG.info("Scheduled the task to run in 5 seconds");
-        //   scheduledExecutorService.shutdown();
-        // } catch (Exception e) {
-        //   e.printStackTrace();
-        // }
-        /////////// DEBUGGING////////////
-
         Tuple2<Integer, Event> srcNodeIdEvent =
             new Tuple2<>(srcNodeIdMessage.f0, (Event) srcNodeIdMessage.f1);
         sourceContext.collectWithTimestamp(srcNodeIdEvent, timestamp_us);
@@ -152,10 +132,19 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
 
         } else if (controlEvent.shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
           shiftTimestamp = Optional.of(controlEvent.shiftTimestamp.get());
+          try {
+            assert shiftTimestamp.isPresent();
+          } catch (AssertionError e) {
+            LOG.error(
+                "Parsing control event {} failed with {}", controlEvent.toString(), e.getMessage());
+            e.printStackTrace();
+          }
           Long transitionDurationInSec =
               getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
-          LOG.info("Drift timestamp: {}", TimeUtils.format(driftTimestamp.get()));
-          LOG.info("Shift timestamp: {}", TimeUtils.format(shiftTimestamp.get()));
+          LOG.info(
+              "Drift timestamp: {}; Shift timestamp: {};",
+              TimeUtils.format(driftTimestamp.get()),
+              TimeUtils.format(shiftTimestamp.get()));
           LOG.info("Transition duration: {} seconds", transitionDurationInSec);
 
           try {
@@ -191,16 +180,6 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
         new Thread(
             () -> {
               try (ServerSocket accepting_socket = new ServerSocket(this.config.hostAddress.port)) {
-                // accepting_socket.setReuseAddress(true);
-                // try {
-                //   accepting_socket.bind(new InetSocketAddress(port));
-                //
-                // } catch (java.net.BindException e) {
-                //   log.error("Failed to bind server socket with the endpoint" + port + ": " + e);
-                //   e.printStackTrace(System.err);
-                //   System.exit(1);
-                // }
-                // LOG.debug("Bound server socket " + accepting_socket);
                 while (!isCancelled) {
                   try {
                     Socket new_client = accepting_socket.accept();
@@ -244,13 +223,18 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
 
         } else if (message.startsWith("control")) {
           Optional<ControlEvent> controlEvent = ControlEvent.parse(message);
+          LOG.debug("Parsed controlEvent: {}", controlEvent);
+
           try {
             assert controlEvent.isPresent();
+            assert controlEvent.get().getClass() == ControlEvent.class;
+            assert controlEvent.get().driftTimestamp.isPresent();
           } catch (AssertionError e) {
-            LOG.error("Parsing control event {} failed", message);
+            LOG.error("Parsing control event {} failed with {}", message, e.getMessage());
             e.printStackTrace();
           }
           parsedMessageStream.put(new Tuple2<>(null, controlEvent.get()));
+          LOG.debug("Inserted controlEvent into the parsedMessageStream: {}", controlEvent.get());
 
         } else if (client_node_id == null) {
           if (!message.startsWith("I am ")) {
