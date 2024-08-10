@@ -52,9 +52,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
     long timestamp_us = Long.MIN_VALUE; // AKA current global watermark
     while (!isCancelled) {
 
-      // retrieve and remove the head of the queue (event stream)
       Tuple2<Integer, Message> srcNodeIdMessage = parsedMessageStream.take();
-      // process it with Flink
       timestamp_us =
           Math.max(
               LocalTime.now().toNanoOfDay() / 1000L,
@@ -105,12 +103,13 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           // TODO: make sure the buffer is cleared for GC after the shift (it's cleared in the
           // timerTask tho)
           LOG.info(
-              "rateMonitoringInputs.isNonFallbackNode(this.nodeId) = "
-                  + config.rateMonitoringInputs.isNonFallbackNode(config.nodeId));
+              "rateMonitoringInputs.isNonFallbackNode(this.nodeId) = {}"
+                  + config.rateMonitoringInputs.isNonFallbackNode(config.nodeId),
+              srcNodeIdEvent.f1.toString());
           LOG.info(
-              "event.eventType.equals(rateMonitoringInputs.partitioningInput) = "
-                  + srcNodeIdEvent.f1.eventType.equals(
-                      config.rateMonitoringInputs.partitioningInput));
+              "event.eventType.equals(rateMonitoringInputs.partitioningInput) = {} for event '{}'",
+              srcNodeIdEvent.f1.eventType.equals(config.rateMonitoringInputs.partitioningInput),
+              srcNodeIdEvent.f1.toString());
 
           if (config.rateMonitoringInputs.isNonFallbackNode(config.nodeId)
               && srcNodeIdEvent.f1.eventType.equals(
@@ -121,47 +120,51 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           }
         }
 
-      } else if (srcNodeIdMessage.f1.getClass().equals(ControlEvent.class)) {
-        LOG.debug("message is of type ControlEvent");
-        ControlEvent controlEvent = (ControlEvent) srcNodeIdMessage.f1;
-
-        // driftimeTimestamp should always be set? assert?
-        if (controlEvent.driftTimestamp.isPresent() && !driftTimestamp.isPresent()) {
-          driftTimestamp = Optional.of(controlEvent.driftTimestamp.get());
-          LOG.info("Drift timestamp: " + TimeUtils.format(driftTimestamp.get()));
-
-        } else if (controlEvent.shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
-          shiftTimestamp = Optional.of(controlEvent.shiftTimestamp.get());
-          try {
-            assert shiftTimestamp.isPresent();
-          } catch (AssertionError e) {
-            LOG.error(
-                "Parsing control event {} failed with {}", controlEvent.toString(), e.getMessage());
-            e.printStackTrace();
-          }
-          Long transitionDurationInSec =
-              getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
-          LOG.info(
-              "Drift timestamp: {}; Shift timestamp: {};",
-              TimeUtils.format(driftTimestamp.get()),
-              TimeUtils.format(shiftTimestamp.get()));
-          LOG.info("Transition duration: {} seconds", transitionDurationInSec);
-
-          try {
-            ScheduledTask scheduledPartEventBufferFlush =
-                new ScheduledTask(this.partEventBuffer, this.config, multiSinkQueryEnabled);
-            ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-            scheduledExecutorService.schedule(
-                scheduledPartEventBufferFlush,
-                transitionDurationInSec,
-                java.util.concurrent.TimeUnit.SECONDS);
-            LOG.info("Scheduled the task to run in {} seconds", transitionDurationInSec);
-            scheduledExecutorService.shutdown();
-          } catch (Exception e) {
-            LOG.error("Failed to initialize a scheduled task");
-            e.printStackTrace();
-          }
-        }
+        // } else if (srcNodeIdMessage.f1.getClass().equals(ControlEvent.class)) {
+        //   LOG.debug("message is of type ControlEvent");
+        //   ControlEvent controlEvent = (ControlEvent) srcNodeIdMessage.f1;
+        //
+        //   if (controlEvent.driftTimestamp.isPresent() && !driftTimestamp.isPresent()) {
+        //     driftTimestamp = Optional.of(controlEvent.driftTimestamp.get());
+        //     LOG.info("Drift timestamp: " + TimeUtils.format(driftTimestamp.get()));
+        //
+        //     if (controlEvent.shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
+        //       shiftTimestamp = Optional.of(controlEvent.shiftTimestamp.get());
+        //       try {
+        //         assert shiftTimestamp.isPresent();
+        //       } catch (AssertionError e) {
+        //         LOG.error(
+        //             "Parsing control event {} failed with {}",
+        //             controlEvent.toString(),
+        //             e.getMessage());
+        //         e.printStackTrace();
+        //       }
+        //       Long transitionDurationInSec =
+        //           getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
+        //       LOG.info(
+        //           "Drift timestamp: {}; Shift timestamp: {};",
+        //           TimeUtils.format(driftTimestamp.get()),
+        //           TimeUtils.format(shiftTimestamp.get()));
+        //       LOG.info("Transition duration: {} seconds", transitionDurationInSec);
+        //
+        //       try {
+        //         ScheduledTask scheduledPartEventBufferFlush =
+        //             new ScheduledTask(this.partEventBuffer, this.config, multiSinkQueryEnabled);
+        //         ScheduledExecutorService scheduledExecutorService =
+        //             Executors.newScheduledThreadPool(1);
+        //         scheduledExecutorService.schedule(
+        //             scheduledPartEventBufferFlush,
+        //             transitionDurationInSec,
+        //             java.util.concurrent.TimeUnit.SECONDS);
+        //         LOG.info("Scheduled the task to run in {} seconds", transitionDurationInSec);
+        //         scheduledExecutorService.shutdown();
+        //       } catch (Exception e) {
+        //         LOG.error("Failed to initialize a scheduled task");
+        //         e.printStackTrace();
+        //       }
+        //     }
+        //   }
+        // }
       }
     }
   }
@@ -233,8 +236,60 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
             LOG.error("Parsing control event {} failed with {}", message, e.getMessage());
             e.printStackTrace();
           }
-          parsedMessageStream.put(new Tuple2<>(null, controlEvent.get()));
-          LOG.debug("Inserted controlEvent into the parsedMessageStream: {}", controlEvent.get());
+
+          if (controlEvent.get().driftTimestamp.isPresent() && !driftTimestamp.isPresent()) {
+            driftTimestamp = Optional.of(controlEvent.get().driftTimestamp.get());
+            try {
+              assert driftTimestamp.isPresent();
+            } catch (AssertionError e) {
+              LOG.error(
+                  "Setting driftTimestamp from control message {} failed with error: {}",
+                  message,
+                  e.getMessage());
+              e.printStackTrace();
+            }
+            LOG.info("Drift timestamp: " + TimeUtils.format(driftTimestamp.get()));
+
+            if (controlEvent.get().shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
+              shiftTimestamp = Optional.of(controlEvent.get().shiftTimestamp.get());
+              try {
+                assert shiftTimestamp.isPresent();
+              } catch (AssertionError e) {
+                LOG.error(
+                    "Setting shiftTimestamp from control message {} failed with error: {}",
+                    message,
+                    e.getMessage());
+                e.printStackTrace();
+              }
+              Long transitionDurationInSec =
+                  getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
+              LOG.info(
+                  "Drift timestamp: {}; Shift timestamp: {}; Transition duration: {} seconds",
+                  TimeUtils.format(driftTimestamp.get()),
+                  TimeUtils.format(shiftTimestamp.get()),
+                  transitionDurationInSec);
+
+              try {
+                ScheduledTask scheduledPartEventBufferFlush =
+                    new ScheduledTask(this.partEventBuffer, this.config, multiSinkQueryEnabled);
+                ScheduledExecutorService scheduledExecutorService =
+                    Executors.newScheduledThreadPool(1);
+                scheduledExecutorService.schedule(
+                    scheduledPartEventBufferFlush,
+                    transitionDurationInSec,
+                    java.util.concurrent.TimeUnit.SECONDS);
+                LOG.info("Scheduled the task to run in {} seconds", transitionDurationInSec);
+                scheduledExecutorService.shutdown();
+              } catch (Exception e) {
+                LOG.error("Failed to initialize a scheduled task");
+                e.printStackTrace();
+              }
+            }
+          }
+
+          // parsedMessageStream.put(new Tuple2<>(null, controlEvent.get()));
+          // LOG.debug("Inserted controlEvent into the parsedMessageStream: {}",
+          // controlEvent.get());
 
         } else if (client_node_id == null) {
           if (!message.startsWith("I am ")) {

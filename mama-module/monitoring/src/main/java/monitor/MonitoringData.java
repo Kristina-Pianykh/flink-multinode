@@ -218,7 +218,7 @@ public class MonitoringData implements Runnable {
           long t = TimeUtils.getCurrentTimeInMicroseconds();
           System.out.println("driftTimestamp = " + t);
           ControlEvent controlEvent = new ControlEvent(Optional.of(t), Optional.empty());
-          sendControlEvent(controlEvent, nodePort);
+          // sendControlEvent(controlEvent, nodePort);
           sendControlEvent(controlEvent, coordinatorPort);
           // break;
         }

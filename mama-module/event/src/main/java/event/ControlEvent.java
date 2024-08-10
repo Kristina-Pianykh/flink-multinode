@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 public class ControlEvent extends Message implements Serializable {
   private static final long serialVersionUID = 1L; // Add a serialVersionUID for Serializable class
-  private static final Logger log = LoggerFactory.getLogger(Event.class);
+  private static final Logger LOG = LoggerFactory.getLogger(Event.class);
   public final boolean control = true;
   public Optional<Long> driftTimestamp;
   public Optional<Long> shiftTimestamp;
@@ -41,7 +41,7 @@ public class ControlEvent extends Message implements Serializable {
 
     String[] receivedParts = message.split("\\|");
     if (!receivedParts[0].trim().contains("control")) {
-      System.out.println("Control message does not start with 'control'!");
+      LOG.error("Control message does not start with 'control'!");
       return Optional.empty();
     }
 
@@ -50,7 +50,12 @@ public class ControlEvent extends Message implements Serializable {
       attributeList.add(receivedParts[i].trim());
     }
 
-    assert attributeList.size() >= 2;
+    try {
+      assert attributeList.size() >= 2;
+    } catch (AssertionError e) {
+      LOG.error("Control message does not contain enough attributes");
+      return Optional.empty();
+    }
 
     if (attributeList.get(0).equals("null")) driftTimestamp = Optional.empty();
     else driftTimestamp = Optional.of(parseTimestamp(attributeList.get(0)));
