@@ -2,7 +2,6 @@ package com.huberlin.coordinator;
 
 import com.huberlin.event.ControlEvent;
 import com.huberlin.javacep.communication.addresses.TCPAddressString;
-import com.huberlin.monitor.TimeUtils;
 import java.io.*;
 import java.net.*;
 import java.nio.file.Files;
@@ -16,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 public class Coordinator {
   private static final Logger LOG = LoggerFactory.getLogger(Coordinator.class);
-  private static final int NODE_NUM = 1;
+  private static final int NODE_NUM = 5;
   private static final int PORT = 6668;
   private static final int COORDINATOR_ID = 42069;
   private static final int RETRY_INTERVAL = 3000;
@@ -105,14 +104,6 @@ public class Coordinator {
         e.printStackTrace();
       }
     }
-
-    try {
-      assert socketWriterMap.size() == NODE_NUM;
-    } catch (AssertionError e) {
-      LOG.error("Failed to establish connections with all nodes.");
-      System.exit(-1);
-    }
-
     return socketWriterMap;
   }
 
@@ -131,82 +122,81 @@ public class Coordinator {
 
     HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap =
         initSocketWriterMap(addressBook);
-    try {
-      Socket socket = socketWriterMap.get(0).f0;
-      PrintWriter writer = socketWriterMap.get(0).f1;
-      try {
-        Thread.sleep(60000);
-      } catch (InterruptedException e) {
-        LOG.error("Thread interrupted with error: {}", e.getMessage());
-        e.printStackTrace();
-      }
-      Long driftTimestamp = TimeUtils.getCurrentTimeInMicroseconds();
-      ControlEvent controlEvent = new ControlEvent(Optional.of(driftTimestamp), Optional.empty());
-      writer.println(controlEvent.toString());
-      LOG.info("Sent control event: {}", controlEvent.toString());
 
-      try {
-        Thread.sleep(2000);
-      } catch (InterruptedException e) {
-        LOG.error("Thread interrupted with error: {}", e.getMessage());
-        e.printStackTrace();
+    try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+      LOG.info("Coordinator started. Listening for connections on port " + PORT + "...");
+      while (true) {
+        Socket socket = serverSocket.accept();
+        new ClientHandler(socket, socketWriterMap).start();
       }
-      controlEvent =
-          new ControlEvent(
-              Optional.of(driftTimestamp), Optional.of(TimeUtils.getCurrentTimeInMicroseconds()));
-      writer.println(controlEvent.toString());
-      LOG.info("Sent control event: {}", controlEvent.toString());
-      writer.println("end-of-the-stream\n");
-      writer.close();
-      socket.close();
     } catch (IOException e) {
-      LOG.error("Failed to establish connection from coordinator: {}", e.getMessage());
+      LOG.error("Failed to start coordinator with error: {}", e.getMessage());
       e.printStackTrace();
+      System.exit(-1);
     }
-  }
-
-  public static void broadcastControlEvent(ControlEvent controlEvent, PrintWriter writer) {
-    LOG.info("Broadcasting control event {}", controlEvent.toString());
-    writer.println(controlEvent.toString());
   }
 
   public static Long addSeconds(Long timestamp, int seconds) {
     return timestamp + seconds * 1_000_000L;
   }
 
-  // private static class ClientHandler extends Thread {
-  //   private ControlEvent controlEvent;
-  //   private static AtomicBoolean triggerFired = new AtomicBoolean(false);
-  //
-  //   public ClientHandler(Socket socket, PrintWriter writer, ControlEvent controlEvent) {
-  //     this.controlEvent = controlEvent;
-  //   }
-  //
-  //   @Override
-  //   public void run() {
-  //     if (message == null || message.contains("end-of-the-stream")) {
-  //       LOG.info("Reached the end of the stream for " + client_address + "\n");
-  //       if (message == null) LOG.info("Stream terminated without end-of-the-stream marker.");
-  //       input.close();
-  //       socket.close();
-  //       return;
-  //
-  //     } else if (message.startsWith("control")) {
-  //       Optional<ControlEvent> controlEvent = ControlEvent.parse(message);
-  //       assert controlEvent.isPresent() : "Parsing control event " + message + "failed";
-  //       assert controlEvent.get().driftTimestamp.isPresent() : "Shift timestamp is not present";
-  //       LOG.info("Received control event: " + controlEvent.get().toString());
-  //
-  //       Long driftTimestamp = controlEvent.get().driftTimestamp.get();
-  //       Long shiftTimestamp = addSeconds(driftTimestamp, TRANSITION_DURATION_IN_SECONDS);
-  //       LOG.info("Drift timestamp: " + driftTimestamp + " Shift timestamp: " + shiftTimestamp);
-  //
-  //       ControlEvent newControlEvent =
-  //           new ControlEvent(Optional.of(driftTimestamp), Optional.of(shiftTimestamp));
-  //       broadcastControlEvent(newControlEvent);
-  //       triggerFired.set(true);
-  //       LOG.info("Broadcasted control event: " + newControlEvent.toString());
-  //     }
-  //   }
-  // }
+  private static class ClientHandler extends Thread {
+    private Socket socket;
+    private HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap;
+
+    public ClientHandler(
+        Socket socket, HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap) {
+      this.socket = socket;
+      this.socketWriterMap = socketWriterMap;
+    }
+
+    private void broadcastControlEvent(ControlEvent controlEvent) {
+      for (Tuple2<Socket, PrintWriter> socketWriter : this.socketWriterMap.values()) {
+        socketWriter.f1.println(controlEvent.toString());
+      }
+    }
+
+    @Override
+    public void run() {
+      try {
+        BufferedReader input =
+            new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+        String client_address = socket.getRemoteSocketAddress().toString();
+
+        while (true) {
+          String message = input.readLine();
+
+          if (message == null || message.contains("end-of-the-stream")) {
+            LOG.info("Reached the end of the stream for " + client_address + "\n");
+            if (message == null) LOG.info("Stream terminated without end-of-the-stream marker.");
+            input.close();
+            socket.close();
+            return;
+
+          } else if (message.startsWith("control")) {
+            Optional<ControlEvent> controlEvent = ControlEvent.parse(message);
+            assert controlEvent.isPresent() : "Parsing control event " + message + "failed";
+            assert controlEvent.get().driftTimestamp.isPresent() : "Shift timestamp is not present";
+            LOG.info("Received control event: " + controlEvent.get().toString());
+
+            Long driftTimestamp = controlEvent.get().driftTimestamp.get();
+            Long shiftTimestamp = addSeconds(driftTimestamp, TRANSITION_DURATION_IN_SECONDS);
+            LOG.info("Drift timestamp: " + driftTimestamp + " Shift timestamp: " + shiftTimestamp);
+
+            ControlEvent newControlEvent =
+                new ControlEvent(Optional.of(driftTimestamp), Optional.of(shiftTimestamp));
+            broadcastControlEvent(newControlEvent);
+            LOG.info("Broadcasted control event: " + newControlEvent.toString());
+          }
+        }
+      } catch (IOException e) {
+        LOG.error("Client disconnected with error {}", e.getMessage());
+        try {
+          socket.close();
+        } catch (IOException exc) {
+          LOG.error("Failed to close socket with error {}", exc.getMessage());
+        }
+      }
+    }
+  }
 }
