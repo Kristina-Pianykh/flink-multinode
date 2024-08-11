@@ -6,23 +6,29 @@ import com.huberlin.javacep.config.ForwardingTable;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
-  private static final Logger log = LoggerFactory.getLogger(TCPEventSender.class);
-  private final ForwardingTable fwd_table;
-  private final HashMap<Integer, TCPAddressString> address_book;
+  private static final Logger LOG = LoggerFactory.getLogger(TCPEventSender.class);
+  public AtomicReference<ForwardingTable> fwdTableRef;
+  // private final ForwardingTable updatedFwdTable;
+  private final HashMap<Integer, TCPAddressString> addressBook;
   private final Map<TCPAddressString, PrintWriter> connections = new HashMap<>();
-  private final int nodeid;
+  private final int nodeId;
 
   public TCPEventSender(
-      HashMap<Integer, TCPAddressString> address_book, ForwardingTable fwd_table, int nodeid) {
-    this.nodeid = nodeid;
-    this.fwd_table = fwd_table;
-    this.address_book = address_book;
+      HashMap<Integer, TCPAddressString> addressBook,
+      AtomicReference<ForwardingTable> fwdTableRef,
+      // ForwardingTable updatedFwdTable,
+      int nodeId) {
+    this.nodeId = nodeId;
+    this.fwdTableRef = fwdTableRef;
+    // this.updatedFwdTable = updatedFwdTable;
+    this.addressBook = addressBook;
   }
 
   /** Called by flink to send events */
@@ -31,9 +37,9 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
     Integer source_node_id = tuple_of_source_node_id_and_event.f0;
     Event event = tuple_of_source_node_id_and_event.f1;
 
-    fwd_table.print();
-    for (Integer node_id : fwd_table.lookup(event.getEventType(), source_node_id)) {
-      TCPAddressString dst = address_book.get(node_id);
+    fwdTableRef.get().print();
+    for (Integer node_id : fwdTableRef.get().lookup(event.getEventType(), source_node_id)) {
+      TCPAddressString dst = addressBook.get(node_id);
       send_to(event.toString(), dst);
     }
   }
@@ -51,11 +57,11 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
           client_socket.setKeepAlive(true);
           // TODO: use json serialization for event objects?
           PrintWriter writer = new PrintWriter(client_socket.getOutputStream(), true);
-          writer.println("I am " + nodeid);
+          writer.println("I am " + nodeId);
           connections.put(target_ip_port, writer);
-          log.info("Connection for forwarding events to " + target_ip_port + " established");
+          LOG.info("Connection for forwarding events to " + target_ip_port + " established");
         } catch (Exception e) {
-          log.error(
+          LOG.error(
               "Failure to establish connection to "
                   + target_ip_port
                   + " for forwarding events. Error: "
@@ -66,7 +72,7 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
       }
       connections.get(target_ip_port).println(message);
     } catch (Exception e) {
-      log.warn("Forwarding Error: " + e + " - Message:" + message + " to " + target_ip_port);
+      LOG.warn("Forwarding Error: " + e + " - Message:" + message + " to " + target_ip_port);
       e.printStackTrace(System.err);
     }
   }

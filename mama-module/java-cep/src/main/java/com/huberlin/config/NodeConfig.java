@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -25,7 +26,7 @@ public class NodeConfig implements Serializable {
   public static class Forwarding implements Serializable {
     public final HashMap<Integer, NodeAddress> addressBook = new HashMap<>();
     public HashMap<Integer, TCPAddressString> addressBookTCP;
-    public ForwardingTable table = new ForwardingTable();
+    public AtomicReference<ForwardingTable> table = new AtomicReference(new ForwardingTable());
     public ForwardingTable updatedTable = new ForwardingTable();
     public ArrayList<Integer> recipient;
   }
@@ -146,6 +147,12 @@ public class NodeConfig implements Serializable {
   private void parseForwarding(JSONObject local, JSONObject address_book, JSONObject updatedRules) {
     JSONObject forwardingObject = local.getJSONObject("forwarding");
     this.forwarding = new NodeConfig.Forwarding();
+    try {
+      assert this.forwarding != null;
+    } catch (AssertionError e) {
+      LOG.error("Forwarding object failed to initialize: {}", e.getMessage());
+      throw e;
+    }
 
     // read forwarding table
     JSONArray ftJson = forwardingObject.getJSONArray("forwarding_table");
@@ -170,15 +177,16 @@ public class NodeConfig implements Serializable {
               + destNodes);
 
       for (Integer sourceNode : sourceNodes)
-        this.forwarding.table.addAll(eventType, sourceNode, destNodes);
+        // this.forwarding.table.addAll(eventType, sourceNode, destNodes);
+        this.forwarding.table.get().addAll(eventType, sourceNode, destNodes);
     }
 
     if (!updatedRules.keySet().contains(Integer.toString(this.nodeId))) {
       System.out.println("==================================================");
       System.out.println("No updated rules for node " + this.nodeId);
-      this.forwarding.table.print();
+      this.forwarding.table.get().print();
       System.out.println("==================================================");
-      this.forwarding.updatedTable = this.forwarding.table;
+      this.forwarding.updatedTable = this.forwarding.table.get();
     } else {
       JSONArray rulesTmp = updatedRules.getJSONArray(Integer.toString(this.nodeId));
       ArrayList<HashMap<String, Integer>> rules =
@@ -193,10 +201,10 @@ public class NodeConfig implements Serializable {
 
     // this.forwarding.table.addAll(eventType, sourceNode, destNodes);
 
-    SortedSet<Integer> allDestNodes = this.forwarding.table.getAllDestinations();
+    SortedSet<Integer> allDestNodes = this.forwarding.table.get().getAllDestinations();
     System.out.println("All destination nodes: " + allDestNodes);
 
-    this.forwarding.recipient = new ArrayList<>(this.forwarding.table.getAllDestinations());
+    this.forwarding.recipient = new ArrayList<>(this.forwarding.table.get().getAllDestinations());
     System.out.println("forwarding.recipient: " + this.forwarding.recipient);
 
     // address book
@@ -220,10 +228,11 @@ public class NodeConfig implements Serializable {
 
     System.out.println("Forwarding:");
     System.out.println("  Table: ");
-    this.forwarding.table.print();
+    this.forwarding.table.get().print();
     System.out.println("  Address book: " + this.forwarding.addressBook);
     this.forwarding.addressBookTCP =
-        parseAddressBook(this.forwarding.addressBook, this.forwarding.table, this.nodeId);
+        parseAddressBook(
+            this.forwarding.addressBook, this.forwarding.table.getPlain(), this.nodeId);
     System.out.println("  Address book TCP: " + this.forwarding.addressBookTCP);
   }
 
