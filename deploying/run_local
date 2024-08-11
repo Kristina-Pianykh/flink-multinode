@@ -109,7 +109,6 @@ mkdir "$RESULTS_DIR/throughput"
 # mv through* "$RESULTS_DIR/throughput"
 
 #wait for process termination
-# killall -9 java
-ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
+ps aux | grep '[j]ava' | grep -v java-language-server | awk '{print $2}' | xargs kill -9
 #clean up ugly empty log files
 #find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
