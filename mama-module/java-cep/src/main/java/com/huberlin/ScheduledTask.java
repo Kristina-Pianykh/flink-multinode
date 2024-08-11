@@ -2,37 +2,61 @@ package com.huberlin.javacep;
 
 import com.huberlin.event.Event;
 import com.huberlin.javacep.communication.addresses.TCPAddressString;
-import com.huberlin.javacep.config.NodeConfig;
+import com.huberlin.javacep.config.ForwardingTable;
+import com.huberlin.sharedconfig.RateMonitoringInputs;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ScheduledTask implements Runnable {
-  public NodeConfig config;
   public Set<Event> eventBuffer;
-  public String eventType;
+  public AtomicReference<ForwardingTable> fwdTableRef;
+  public ForwardingTable updatedFwdTable;
+  public RateMonitoringInputs rateMonitoringInputs;
+  public int nodeId;
+  public HashMap<Integer, TCPAddressString> addressBookTCP;
   public AtomicBoolean multiSinkQueryEnabled;
+  public String eventType;
   public HashMap<Integer, Tuple2<Socket, PrintWriter>> dstSocketWriterMap;
   private static final Logger LOG = LoggerFactory.getLogger(ScheduledTask.class);
 
   public ScheduledTask(
-      Set<Event> eventBuffer, NodeConfig config, AtomicBoolean multiSinkQueryEnabled) {
+      Set<Event> eventBuffer,
+      AtomicReference<ForwardingTable> fwdTableRef,
+      ForwardingTable updatedFwdTable,
+      RateMonitoringInputs rateMonitoringInputs,
+      int nodeId,
+      HashMap<Integer, TCPAddressString> addressBookTCP,
+      AtomicBoolean multiSinkQueryEnabled) {
     this.eventBuffer = eventBuffer;
-    this.config = config;
-    this.eventType = this.config.rateMonitoringInputs.partitioningInput;
+    assert (this.eventBuffer != null);
+    this.fwdTableRef = fwdTableRef;
+    assert (this.fwdTableRef != null);
+    this.updatedFwdTable = updatedFwdTable;
+    assert (this.updatedFwdTable != null);
+    this.rateMonitoringInputs = rateMonitoringInputs;
+    assert (this.rateMonitoringInputs != null);
+    this.nodeId = nodeId;
+    assert (this.nodeId >= 0);
+    this.addressBookTCP = addressBookTCP;
+    assert (this.addressBookTCP != null);
     this.multiSinkQueryEnabled = multiSinkQueryEnabled;
+    assert (this.multiSinkQueryEnabled != null);
+    this.eventType = this.rateMonitoringInputs.partitioningInput;
+    assert (this.eventType != null);
     LOG.info("initializing socket writer map");
     try {
       initSocketWriterMap(this.eventType);
       System.out.println("initialized socket writer map");
       printSocketWriterMap();
-      LOG.info("Scheduled task created for node " + this.config.nodeId);
+      LOG.info("Scheduled task created for node " + this.nodeId);
     } catch (Exception exc) {
       exc.printStackTrace();
     }
@@ -48,7 +72,7 @@ public class ScheduledTask implements Runnable {
   }
 
   public void initSocketWriterMap(String eventType) {
-    SortedSet<Integer> dstNodeIds = this.config.forwarding.updatedTable.lookupUpdated(eventType);
+    SortedSet<Integer> dstNodeIds = this.updatedFwdTable.lookupUpdated(eventType);
     System.out.println("Destination Node IDs: " + dstNodeIds);
     // there must be only one dest ideally but the part input could be also used elsewhere??????
     // HashMap<Integer, Tuple2<Socket, PrintWriter>> dstSockets = new HashMap<>();
@@ -56,7 +80,7 @@ public class ScheduledTask implements Runnable {
 
     for (Integer dstNodeId : dstNodeIds) {
       try {
-        TCPAddressString dst = this.config.forwarding.addressBookTCP.get(dstNodeId);
+        TCPAddressString dst = this.addressBookTCP.get(dstNodeId);
         String host = dst.getHost();
         System.out.println("Host: " + host);
         int port = dst.getPort();
@@ -67,7 +91,7 @@ public class ScheduledTask implements Runnable {
           PrintWriter writer = new PrintWriter(client_socket.getOutputStream(), true);
           this.dstSocketWriterMap.get(dstNodeId).f0 = client_socket;
           this.dstSocketWriterMap.get(dstNodeId).f1 = writer;
-          writer.println("I am " + this.config.nodeId);
+          writer.println("I am " + this.nodeId);
           System.out.println("Connection for forwarding events to " + dst + " established");
         } catch (ConnectException e) {
           LOG.error("Server is not running. Please start the server and try again.");
@@ -96,19 +120,20 @@ public class ScheduledTask implements Runnable {
   @Override
   public void run() {
     LOG.info("Updating forwarding table...");
-    LOG.debug("Forwarding table before update: {}", this.config.forwarding.table.toString());
-    this.config.forwarding.table = this.config.forwarding.updatedTable;
+    LOG.debug("Forwarding table before update: {}", this.fwdTableRef.get().toString());
+    // this.config.forwarding.get().table = this.config.forwarding.get().updatedTable;
+    this.fwdTableRef.set(this.updatedFwdTable);
 
     LOG.debug("multiSinkQueryEnabled before update: {}", this.multiSinkQueryEnabled.get());
     this.multiSinkQueryEnabled.set(false);
     LOG.debug("multiSinkQueryEnabled after update: {}", this.multiSinkQueryEnabled.get());
-    LOG.info(
-        "Multi-Sink query {} disabled on the current node {}",
-        this.config.rateMonitoringInputs.multiSinkQuery,
-        this.config.nodeId);
+    // LOG.info(
+    //     "Multi-Sink query {} disabled on the current node {}",
+    //     this.rateMonitoringInputs.multiSinkQuery,
+    //     this.nodeId);
 
     try {
-      assert this.config.forwarding.table.equals(this.config.forwarding.updatedTable);
+      assert this.fwdTableRef.get().equals(this.updatedFwdTable);
     } catch (NullPointerException e) {
       LOG.error("Update of forwarding table resulted in null");
       e.printStackTrace();
@@ -116,13 +141,13 @@ public class ScheduledTask implements Runnable {
       LOG.error(
           "Update of forwarding table failed\n. this.config.forwarding.table = {}\n"
               + "this.config.forwarding.updatedTable = {}",
-          this.config.forwarding.table.toString(),
-          this.config.forwarding.updatedTable.toString());
+          this.fwdTableRef.get().toString(),
+          this.updatedFwdTable.toString());
       e.printStackTrace();
     }
 
     LOG.info("Forwarding table updated successfully");
-    LOG.info("Forwarding table after update: {}", this.config.forwarding.table.toString());
+    LOG.info("Forwarding table after update: {}", this.fwdTableRef.get().toString());
     LOG.info(
         "===============FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE:" + " {}===============",
         this.eventBuffer.size());

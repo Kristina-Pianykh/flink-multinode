@@ -69,14 +69,56 @@ public class PatternFactory_generic {
       NodeConfig.Processing q = allQueries.get(i);
 
       LOG.debug("Inputs: {}", q.inputs);
-      try {
-        matchingStreams.add(processQuery(q, config, inputStream, windowFactor));
-        queryCounter++; // Query counter for patterns
-      } catch (Exception e) {
-        LOG.error("Error processing query {}: {}", q.queryName, e);
-        throw new RuntimeException(e);
+      final int prevIdx = i - 1;
+      LOG.debug("prevIdx: {}", prevIdx);
+      LOG.debug(
+          "Current query: {}, previous query: {}",
+          q.queryName,
+          prevIdx >= 0 ? allQueries.get(prevIdx).queryName : "none");
+
+      if (prevIdx >= 0) {
+        LOG.debug(
+            "q.inputs.stream().anyMatch(s -> s.contains(allQueries.get(prevIdx).queryName)) = {}",
+            q.inputs.stream().anyMatch(s -> s.contains(allQueries.get(prevIdx).queryName)));
+      }
+
+      if (i > 0 && q.inputs.stream().anyMatch(s -> s.contains(allQueries.get(prevIdx).queryName))) {
+        LOG.debug("{} is input to {}", allQueries.get(prevIdx).queryName, q.queryName);
+        try {
+          assert (matchingStreams.get(prevIdx).getClass() == DataStream.class);
+          assert (matchingStreams.size() == i);
+
+          // emit watermark on complex matches used as input for another query
+          DataStream<Event> unionStream =
+              inputStream
+                  .union(matchingStreams.get(prevIdx))
+                  .assignTimestampsAndWatermarks(new CustomWatermarkStrategy());
+          matchingStreams.add(processQuery(q, config, unionStream, windowFactor));
+          queryCounter++; // Query counter for patterns
+        } catch (Exception e) {
+          LOG.error("Error processing query {}: {}", q.queryName, e);
+          throw new RuntimeException(e);
+        }
+      } else {
+        try {
+          matchingStreams.add(processQuery(q, config, inputStream, windowFactor));
+          queryCounter++; // Query counter for patterns
+        } catch (Exception e) {
+          LOG.error("Error processing query {}: {}", q.queryName, e);
+          throw new RuntimeException(e);
+        }
       }
     }
+
+    try {
+      assert matchingStreams.size() == config.processing.size();
+    } catch (AssertionError e) {
+      LOG.error(
+          "number of matchingStreams doesn't equal number of queries on the node: {}",
+          e.getMessage());
+      throw new AssertionError();
+    }
+
     return matchingStreams;
   }
 

@@ -5,8 +5,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.huberlin.event.ComplexEvent;
 import com.huberlin.event.Event;
 import com.huberlin.event.SimpleEvent;
+import com.huberlin.javacep.config.NodeConfig;
+import java.io.IOException;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class GeneralTest {
@@ -103,5 +108,91 @@ class GeneralTest {
         new ComplexEvent(getCurrentTimeInMicroseconds(), "SEQ(D, A)", eventList, new ArrayList<>());
     System.out.println(ce.toString());
     System.out.println(ce.getEventType());
+  }
+
+  @Test
+  void scheduledTaskTest() {
+    String filePath_local =
+        "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs_dev/generate_flink_inputs/plans/config_0.json";
+    String filePath_global =
+        "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json";
+    String rateMonitoringInputsPath =
+        "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs_dev/generate_flink_inputs/plans/inequality_inputs.json";
+    String updatedForwardingRulesPath =
+        "/Users/krispian/Uni/bachelorarbeit/test_flink_inputs_dev/generate_flink_inputs/plans/updated_forwared_rules.json";
+
+    Set<Event> partEventBuffer = new HashSet<>();
+    AtomicBoolean multiSinkQueryEnabled = new AtomicBoolean(true);
+
+    NodeConfig config = new NodeConfig();
+    try {
+      config.parseJsonFile(
+          filePath_local, filePath_global, rateMonitoringInputsPath, updatedForwardingRulesPath);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    if (config != null) {
+      System.out.println("Parsed JSON successfully");
+    } else {
+      System.out.println("Failed to parse JSON");
+      System.exit(1);
+    }
+
+    config.forwarding.table.get().print();
+
+    // final int REST_PORT = 8081 + config.nodeId * 2;
+    // Configuration flinkConfig =
+    //     GlobalConfiguration.loadConfiguration(cmd.getOptionValue("flinkconfig", "conf"));
+    // flinkConfig.set(JobManagerOptions.RPC_BIND_PORT, 6123 + config.nodeId);
+    // flinkConfig.set(JobManagerOptions.PORT, 6123 + config.nodeId);
+    // flinkConfig.set(RestOptions.BIND_PORT, REST_PORT + "-" + (REST_PORT + 1));
+    // flinkConfig.set(RestOptions.PORT, REST_PORT);
+    // flinkConfig.set(TaskManagerOptions.RPC_BIND_PORT, 51000 + config.nodeId);
+    // flinkConfig.set(TaskManagerOptions.RPC_PORT, "0");
+    // flinkConfig.set(BlobServerOptions.PORT, "0");
+    //
+    // StreamExecutionEnvironment env =
+    // StreamExecutionEnvironment.createLocalEnvironment(flinkConfig);
+    // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+    // FileSystem.initialize(flinkConfig);
+    //
+    // // Only one engine-thread will work (output is displayed in the same way the packets arrive)
+    // env.setParallelism(1);
+    //
+    // List<Integer> events = new ArrayList<>();
+    // events.add(1);
+    // events.add(2);
+    // events.add(3);
+    // DataStream<Integer> stream = env.fromCollection(events);
+
+    // stream.addSink()
+
+    try {
+      ScheduledTask scheduledPartEventBufferFlush =
+          new ScheduledTask(
+              partEventBuffer,
+              config.forwarding.table,
+              config.forwarding.updatedTable,
+              config.rateMonitoringInputs,
+              config.nodeId,
+              config.forwarding.addressBookTCP,
+              multiSinkQueryEnabled);
+      ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
+      scheduledExecutorService.schedule(
+          scheduledPartEventBufferFlush, 1, java.util.concurrent.TimeUnit.SECONDS);
+      scheduledExecutorService.shutdown();
+      try {
+        Thread.sleep(9000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+
+      config.forwarding.table.get().print();
+    } catch (Exception e) {
+      System.out.println("Failed to initialize a scheduled task");
+      e.printStackTrace();
+    }
   }
 }

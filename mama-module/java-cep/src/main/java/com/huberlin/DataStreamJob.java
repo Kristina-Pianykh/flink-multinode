@@ -7,6 +7,7 @@ import com.huberlin.javacep.communication.SendToMonitor;
 import com.huberlin.javacep.communication.TCPEventSender;
 import com.huberlin.javacep.config.NodeConfig;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.commons.cli.*;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 public class DataStreamJob {
   private static final Logger LOG = LoggerFactory.getLogger(DataStreamJob.class);
+  public static AtomicBoolean multiSinkQueryEnabled = new AtomicBoolean(true);
 
   private static CommandLine parse_cmdline_args(String[] args) {
     final Options cmdline_opts = new Options();
@@ -78,6 +80,13 @@ public class DataStreamJob {
             + "\n    "
             + config.forwarding.updatedTable.lookupUpdated(partInput));
 
+    // System.out.println("Old forwarding table:");
+    // System.out.println(config.forwarding.table.get());
+    // System.out.println("Updating forwarding table...");
+    // config.forwarding.table.set(config.forwarding.updatedTable);
+    // System.out.println("New forwarding table:");
+    // System.out.println(config.forwarding.table.get());
+
     final int REST_PORT = 8081 + config.nodeId * 2;
     Configuration flinkConfig =
         GlobalConfiguration.loadConfiguration(cmd.getOptionValue("flinkconfig", "conf"));
@@ -97,87 +106,6 @@ public class DataStreamJob {
     env.setParallelism(1);
 
     DataStream<Tuple2<Integer, Event>> inputStream = env.addSource(new OldSourceFunction(config));
-
-    /* for fallback node only: filter out the non-partitioning inputs for
-    to apply a pattern with 2x window size for retrospective matching
-    with the fluahed partitioning inputs (once only) */
-    if (config.nodeId == config.rateMonitoringInputs.fallbackNode) {
-      LOG.debug("I am the fallback node");
-      DataStream<Tuple2<Integer, Event>> nonPartitioningInputStream =
-          inputStream.filter(
-              new FilterFunction<Tuple2<Integer, Event>>() {
-
-                @Override
-                public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
-                  Event event = srcIdEvent.f1;
-                  LOG.debug(
-                      "Event {} is non-partitioning: {}",
-                      event.getEventType(),
-                      config.rateMonitoringInputs.nonPartitioningInputs.contains(
-                          event.getEventType()));
-                  if (config.rateMonitoringInputs.nonPartitioningInputs.contains(
-                      event.getEventType())) {
-                    LOG.debug("Filtered out a non-partitioning input: {}", event.toString());
-                    return true;
-                  }
-                  return false;
-                }
-              });
-
-      DataStream<Tuple2<Integer, Event>> flushedPartitioningInputsStream =
-          inputStream.filter(
-              new FilterFunction<Tuple2<Integer, Event>>() {
-
-                @Override
-                public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
-                  Event event = srcIdEvent.f1;
-                  boolean isPartitioningInput =
-                      config.rateMonitoringInputs.partitioningInput.equals(event.getEventType());
-                  boolean isFlushedEvent = event.isFlushed();
-                  if (isFlushedEvent) {
-                    LOG.debug("Detected flushed event: {}", event);
-                    LOG.debug("isPartitioningInput = {}", isPartitioningInput);
-                    LOG.debug("isFlushedEvent = {}", isFlushedEvent);
-                  }
-                  if (isPartitioningInput && isFlushedEvent) return true;
-                  else return false;
-                }
-              });
-
-      DataStream<Tuple2<Integer, Event>> shiftMultiSinkQueryInputs =
-          nonPartitioningInputStream.union(flushedPartitioningInputsStream);
-
-      /* DEBUGGING STEP */
-      List<NodeConfig.Processing> queries =
-          config.processing.stream()
-              .filter(q -> q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery))
-              .collect(Collectors.toList());
-      try {
-        assert queries.size() == 1;
-        assert queries.get(0).queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
-        LOG.debug(
-            "Found multi-sink query {} on the fallback node {}",
-            queries.get(0).queryName,
-            config.nodeId);
-      } catch (AssertionError e) {
-        LOG.error("Assertions about queries failed with: {}", e.getMessage());
-        System.exit(1);
-      }
-      /* DEBUGGING STEP */
-
-      DataStream<Event> matchedMultiSinkQueryOutput =
-          PatternFactory_generic.processQuery(
-              queries.get(0), config, shiftMultiSinkQueryInputs.map((tuple) -> tuple.f1), 2);
-
-      matchedMultiSinkQueryOutput.filter(
-          new FilterFunction<Event>() {
-            @Override
-            public boolean filter(Event event) {
-              LOG.debug("Event matched retrospectively: {}", event);
-              return true;
-            }
-          });
-    }
 
     // important check if node is one of the multi-sink nodes
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
@@ -290,14 +218,94 @@ public class DataStreamJob {
               }
             });
 
+    /* for fallback node only: filter out the non-partitioning inputs for
+    to apply a pattern with 2x window size for retrospective matching
+    with the fluahed partitioning inputs (once only) */
+    if (config.nodeId == config.rateMonitoringInputs.fallbackNode) {
+      LOG.debug("I am the fallback node");
+      DataStream<Tuple2<Integer, Event>> nonPartitioningInputStream =
+          outputStream.filter(
+              new FilterFunction<Tuple2<Integer, Event>>() {
+
+                @Override
+                public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
+                  Event event = srcIdEvent.f1;
+                  LOG.debug(
+                      "Event {} is non-partitioning: {}",
+                      event.getEventType(),
+                      config.rateMonitoringInputs.nonPartitioningInputs.contains(
+                          event.getEventType()));
+                  if (config.rateMonitoringInputs.nonPartitioningInputs.contains(
+                      event.getEventType())) {
+                    LOG.debug("Filtered out a non-partitioning input: {}", event.toString());
+                    return true;
+                  }
+                  return false;
+                }
+              });
+
+      DataStream<Tuple2<Integer, Event>> flushedPartitioningInputsStream =
+          inputStream.filter(
+              new FilterFunction<Tuple2<Integer, Event>>() {
+
+                @Override
+                public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
+                  Event event = srcIdEvent.f1;
+                  boolean isPartitioningInput =
+                      config.rateMonitoringInputs.partitioningInput.equals(event.getEventType());
+                  boolean isFlushedEvent = event.isFlushed();
+                  if (isFlushedEvent) {
+                    LOG.debug("Detected flushed event: {}", event);
+                    LOG.debug("isPartitioningInput = {}", isPartitioningInput);
+                    LOG.debug("isFlushedEvent = {}", isFlushedEvent);
+                  }
+                  if (isPartitioningInput && isFlushedEvent) return true;
+                  else return false;
+                }
+              });
+
+      DataStream<Tuple2<Integer, Event>> shiftMultiSinkQueryInputs =
+          nonPartitioningInputStream.union(flushedPartitioningInputsStream);
+
+      /* DEBUGGING STEP */
+      List<NodeConfig.Processing> queries =
+          config.processing.stream()
+              .filter(q -> q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery))
+              .collect(Collectors.toList());
+      try {
+        assert queries.size() == 1;
+        assert queries.get(0).queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
+        LOG.debug(
+            "Found multi-sink query {} on the fallback node {}",
+            queries.get(0).queryName,
+            config.nodeId);
+      } catch (AssertionError e) {
+        LOG.error("Assertions about queries failed with: {}", e.getMessage());
+        System.exit(1);
+      }
+      /* DEBUGGING STEP */
+
+      DataStream<Event> matchedMultiSinkQueryOutput =
+          PatternFactory_generic.processQuery(
+              queries.get(0), config, shiftMultiSinkQueryInputs.map((tuple) -> tuple.f1), 2);
+
+      matchedMultiSinkQueryOutput.filter(
+          new FilterFunction<Event>() {
+            @Override
+            public boolean filter(Event event) {
+              LOG.debug("Event matched retrospectively: {}", event);
+              return true;
+            }
+          });
+    }
+
     filteredOutputStream.addSink(
         new TCPEventSender(
             config.forwarding.addressBookTCP,
             config.forwarding.table,
-            config
-                .nodeId)); // The cast expresses the fact that a TCPEventSender is a SinkFunction<?
-    // extends Event>, not just a SInkFunction<Event>. I can't specify it in
-    // java though.
+            config.nodeId)); // The cast expresses the fact that a TCPEventSender is a
+    // SinkFunction<? extends Event>, not just a SInkFunction<Event>. I can't specify it in java
+    // though.
 
     // Start cluster/CEP-engine
     env.execute("Flink Java API Skeleton");
