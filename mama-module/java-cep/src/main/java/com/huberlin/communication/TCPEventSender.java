@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
-  private static final Logger log = LoggerFactory.getLogger(TCPEventSender.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TCPEventSender.class);
   private final ForwardingTable fwd_table;
   private final HashMap<Integer, TCPAddressString> address_book;
   private final Map<TCPAddressString, PrintWriter> connections = new HashMap<>();
@@ -49,13 +49,12 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
           Socket client_socket = new Socket(host, port);
           client_socket.setTcpNoDelay(true);
           client_socket.setKeepAlive(true);
-          // TODO: use json serialization for event objects?
           PrintWriter writer = new PrintWriter(client_socket.getOutputStream(), true);
           writer.println("I am " + nodeid);
           connections.put(target_ip_port, writer);
-          log.info("Connection for forwarding events to " + target_ip_port + " established");
+          LOG.info("Connection for forwarding events to " + target_ip_port + " established");
         } catch (Exception e) {
-          log.error(
+          LOG.error(
               "Failure to establish connection to "
                   + target_ip_port
                   + " for forwarding events. Error: "
@@ -66,7 +65,7 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Event>> {
       }
       connections.get(target_ip_port).println(message);
     } catch (Exception e) {
-      log.warn("Forwarding Error: " + e + " - Message:" + message + " to " + target_ip_port);
+      LOG.error("Forwarding Error: " + e + " - Message:" + message + " to " + target_ip_port);
       e.printStackTrace(System.err);
     }
   }

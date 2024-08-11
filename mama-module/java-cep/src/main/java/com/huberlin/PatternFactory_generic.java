@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+// import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.cep.CEP;
 import org.apache.flink.cep.PatternFlatSelectFunction;
@@ -80,29 +81,32 @@ public class PatternFactory_generic {
             "q.inputs.stream().anyMatch(s -> s.contains(allQueries.get(prevIdx).queryName)) = {}",
             q.inputs.stream().anyMatch(s -> s.contains(allQueries.get(prevIdx).queryName)));
       }
-      // if (i > 0 && q.inputs.stream().anyMatch(s ->
-      // s.contains(allQueries.get(prevIdx).queryName))) {
-      //   LOG.debug("{} is input to {}", allQueries.get(prevIdx).queryName, q.queryName);
-      //   try {
-      //     assert (matchingStreams.get(prevIdx).getClass() == DataStream.class);
-      //     assert (matchingStreams.size() == i);
-      //
-      //     matchingStreams.add(
-      //         processQuery(q, config, inputStream.union(matchingStreams.get(prevIdx))));
-      //     queryCounter++; // Query counter for patterns
-      //   } catch (Exception e) {
-      //     LOG.error("Error processing query {}: {}", q.queryName, e);
-      //     throw new RuntimeException(e);
-      //   }
-      // } else {
-      try {
-        matchingStreams.add(processQuery(q, config, inputStream));
-        queryCounter++; // Query counter for patterns
-      } catch (Exception e) {
-        LOG.error("Error processing query {}: {}", q.queryName, e);
-        throw new RuntimeException(e);
+      if (i > 0 && q.inputs.stream().anyMatch(s -> s.contains(allQueries.get(prevIdx).queryName))) {
+        LOG.debug("{} is input to {}", allQueries.get(prevIdx).queryName, q.queryName);
+        try {
+          assert (matchingStreams.get(prevIdx).getClass() == DataStream.class);
+          assert (matchingStreams.size() == i);
+
+          // emit watermark on every event of the matching stream at the previous index
+          DataStream<Event> unionStream =
+              inputStream
+                  .union(matchingStreams.get(prevIdx))
+                  .assignTimestampsAndWatermarks(new CustomWatermarkStrategy());
+          matchingStreams.add(processQuery(q, config, unionStream));
+          queryCounter++; // Query counter for patterns
+        } catch (Exception e) {
+          LOG.error("Error processing query {}: {}", q.queryName, e);
+          throw new RuntimeException(e);
+        }
+      } else {
+        try {
+          matchingStreams.add(processQuery(q, config, inputStream));
+          queryCounter++; // Query counter for patterns
+        } catch (Exception e) {
+          LOG.error("Error processing query {}: {}", q.queryName, e);
+          throw new RuntimeException(e);
+        }
       }
-      // }
     }
 
     if (config.nodeId == 1) {
