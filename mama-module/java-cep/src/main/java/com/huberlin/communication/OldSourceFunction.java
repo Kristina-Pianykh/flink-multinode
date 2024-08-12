@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>> {
+public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Message>> {
   private static final Logger LOG = LoggerFactory.getLogger(OldSourceFunction.class);
   public NodeConfig config;
   public static Optional<Long> driftTimestamp = Optional.empty();
@@ -47,7 +47,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
   }
 
   @Override
-  public void run(SourceFunction.SourceContext<Tuple2<Integer, Event>> sourceContext)
+  public void run(SourceFunction.SourceContext<Tuple2<Integer, Message>> sourceContext)
       throws Exception {
     long timestamp_us = Long.MIN_VALUE; // AKA current global watermark
     while (!isCancelled) {
@@ -62,10 +62,11 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
           "retrieved the message from parsedMessageStream: {}", srcNodeIdMessage.f1.toString());
       LOG.debug("message is of type {}", srcNodeIdMessage.f1.getClass());
       List<Class> eventClasses = Arrays.asList(SimpleEvent.class, ComplexEvent.class, Event.class);
+
       if (eventClasses.contains(srcNodeIdMessage.f1.getClass())) {
 
-        Tuple2<Integer, Event> srcNodeIdEvent =
-            new Tuple2<>(srcNodeIdMessage.f0, (Event) srcNodeIdMessage.f1);
+        Event event = (Event) srcNodeIdMessage.f1;
+        Tuple2<Integer, Message> srcNodeIdEvent = new Tuple2<>(srcNodeIdMessage.f0, event);
         sourceContext.collectWithTimestamp(srcNodeIdEvent, timestamp_us);
         sourceContext.emitWatermark(new Watermark(timestamp_us));
         if (LOG.isTraceEnabled()) {
@@ -108,15 +109,94 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
               srcNodeIdEvent.f1.toString());
           LOG.info(
               "event.eventType.equals(rateMonitoringInputs.partitioningInput) = {} for event '{}'",
-              srcNodeIdEvent.f1.eventType.equals(config.rateMonitoringInputs.partitioningInput),
-              srcNodeIdEvent.f1.toString());
+              event.eventType.equals(config.rateMonitoringInputs.partitioningInput),
+              event.toString());
 
           if (config.rateMonitoringInputs.isNonFallbackNode(config.nodeId)
-              && srcNodeIdEvent.f1.eventType.equals(
-                  config.rateMonitoringInputs.partitioningInput)) {
-            srcNodeIdEvent.f1.addAttribute("flushed");
-            this.partEventBuffer.add(srcNodeIdEvent.f1);
+              && event.eventType.equals(config.rateMonitoringInputs.partitioningInput)) {
+            event.addAttribute("flushed");
+            this.partEventBuffer.add(event);
             LOG.info("Inserted event {} into the nonPartBuffer", srcNodeIdEvent.f1);
+          }
+        }
+
+      } else if (srcNodeIdMessage.f1.getClass().equals(ControlEvent.class)) {
+        LOG.debug("message is of type ControlEvent");
+        ControlEvent controlEvent = (ControlEvent) srcNodeIdMessage.f1;
+
+        if (controlEvent.driftTimestamp.isPresent() && !driftTimestamp.isPresent()) {
+          driftTimestamp = Optional.of(controlEvent.driftTimestamp.get());
+
+          try {
+            assert driftTimestamp.isPresent();
+          } catch (AssertionError e) {
+            LOG.error(
+                "Setting driftTimestamp from control message {} failed with error: {}",
+                controlEvent.toString(),
+                e.getMessage());
+            e.printStackTrace();
+          }
+
+          LOG.info("Drift timestamp: " + TimeUtils.format(driftTimestamp.get()));
+
+          if (controlEvent.shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
+            shiftTimestamp = Optional.of(controlEvent.shiftTimestamp.get());
+
+            try {
+              assert shiftTimestamp.isPresent();
+            } catch (AssertionError e) {
+              LOG.error(
+                  "Setting shiftTimestamp from control message {} failed with error: {}",
+                  controlEvent.toString(),
+                  e.getMessage());
+              e.printStackTrace();
+            }
+
+            Long transitionDurationInSec =
+                getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
+            LOG.info(
+                "Drift timestamp: {}; Shift timestamp: {}; Transition duration: {} seconds",
+                TimeUtils.format(driftTimestamp.get()),
+                TimeUtils.format(shiftTimestamp.get()),
+                transitionDurationInSec);
+
+            try {
+              ScheduledTask scheduledPartEventBufferFlush =
+                  new ScheduledTask(
+                      this.partEventBuffer,
+                      this.config.forwarding.table,
+                      this.config.forwarding.updatedTable,
+                      this.config.rateMonitoringInputs,
+                      this.config.nodeId,
+                      this.config.forwarding.addressBookTCP,
+                      multiSinkQueryEnabled);
+              ScheduledExecutorService scheduledExecutorService =
+                  Executors.newScheduledThreadPool(1);
+              scheduledExecutorService.schedule(
+                  scheduledPartEventBufferFlush,
+                  transitionDurationInSec,
+                  java.util.concurrent.TimeUnit.SECONDS);
+              LOG.info("Scheduled the task to run in {} seconds", transitionDurationInSec);
+              scheduledExecutorService.shutdown();
+            } catch (Exception e) {
+              LOG.error("Failed to initialize a scheduled task");
+              e.printStackTrace();
+            }
+
+            // src node ID is -1 for now since flink can't serialize null in Tuple2
+            sourceContext.collectWithTimestamp(new Tuple2<>(-1, controlEvent), timestamp_us);
+            sourceContext.emitWatermark(new Watermark(timestamp_us));
+            if (LOG.isTraceEnabled()) {
+              LOG.trace(
+                  "From node "
+                      + srcNodeIdMessage.f0
+                      + ": "
+                      + "Event "
+                      + controlEvent.toString()
+                      + " collected with timestamp "
+                      + timestamp_us);
+              LOG.trace("Watermark: " + timestamp_us);
+            }
           }
         }
       }
@@ -191,71 +271,8 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Event>
             e.printStackTrace();
           }
 
-          if (controlEvent.get().driftTimestamp.isPresent() && !driftTimestamp.isPresent()) {
-            driftTimestamp = Optional.of(controlEvent.get().driftTimestamp.get());
-            try {
-              assert driftTimestamp.isPresent();
-            } catch (AssertionError e) {
-              LOG.error(
-                  "Setting driftTimestamp from control message {} failed with error: {}",
-                  message,
-                  e.getMessage());
-              e.printStackTrace();
-            }
-            LOG.info("Drift timestamp: " + TimeUtils.format(driftTimestamp.get()));
-
-            if (controlEvent.get().shiftTimestamp.isPresent() && !shiftTimestamp.isPresent()) {
-              shiftTimestamp = Optional.of(controlEvent.get().shiftTimestamp.get());
-              try {
-                assert shiftTimestamp.isPresent();
-              } catch (AssertionError e) {
-                LOG.error(
-                    "Setting shiftTimestamp from control message {} failed with error: {}",
-                    message,
-                    e.getMessage());
-                e.printStackTrace();
-              }
-              Long transitionDurationInSec =
-                  getTimeDeltaInSec(shiftTimestamp.get(), driftTimestamp.get());
-              LOG.info(
-                  "Drift timestamp: {}; Shift timestamp: {}; Transition duration: {} seconds",
-                  TimeUtils.format(driftTimestamp.get()),
-                  TimeUtils.format(shiftTimestamp.get()),
-                  transitionDurationInSec);
-
-              //           public ScheduledTask(
-              // Set<Event> eventBuffer,
-              // AtomicReference<ForwardingTable> fwdTableRef,
-              // ForwardingTable updatedFwdTable,
-              // RateMonitoringInputs rateMonitoringInputs,
-              // int nodeId,
-              // HashMap<Integer, TCPAddressString> addressBookTCP,
-              // AtomicBoolean multiSinkQueryEnabled) {
-
-              try {
-                ScheduledTask scheduledPartEventBufferFlush =
-                    new ScheduledTask(
-                        this.partEventBuffer,
-                        this.config.forwarding.table,
-                        this.config.forwarding.updatedTable,
-                        this.config.rateMonitoringInputs,
-                        this.config.nodeId,
-                        this.config.forwarding.addressBookTCP,
-                        multiSinkQueryEnabled);
-                ScheduledExecutorService scheduledExecutorService =
-                    Executors.newScheduledThreadPool(1);
-                scheduledExecutorService.schedule(
-                    scheduledPartEventBufferFlush,
-                    transitionDurationInSec,
-                    java.util.concurrent.TimeUnit.SECONDS);
-                LOG.info("Scheduled the task to run in {} seconds", transitionDurationInSec);
-                scheduledExecutorService.shutdown();
-              } catch (Exception e) {
-                LOG.error("Failed to initialize a scheduled task");
-                e.printStackTrace();
-              }
-            }
-          }
+          parsedMessageStream.put(new Tuple2<>(null, controlEvent.get()));
+          LOG.info("Inserted control event into the parsedMessageStream: {}", controlEvent.get());
 
         } else if (client_node_id == null) {
           if (!message.startsWith("I am ")) {

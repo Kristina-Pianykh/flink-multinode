@@ -36,12 +36,11 @@ public class ForwardingTable implements Serializable {
         this.table.getOrDefault(eventType, new HashMap<>());
     if (srcDestMap.isEmpty()) return dest;
 
-    System.out.println(srcDestMap);
+    LOG.debug("srcDestMap: {}", srcDestMap);
     for (SortedSet<Integer> set : srcDestMap.values()) {
       dest.addAll(set);
     }
-    // dest.addAll(this.table.getOrDefault(eventType, new HashMap<>()).get(null));
-    System.out.println(dest);
+    LOG.debug("Destination nodes: {}", dest);
 
     if (dest == null) {
       LOG.warn(
