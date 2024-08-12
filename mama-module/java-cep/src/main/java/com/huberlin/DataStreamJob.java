@@ -429,7 +429,7 @@ public class DataStreamJob {
           });
     }
 
-    eventOutputStream
+    deduplicatedEventStream
         .union(controlStream)
         .addSink(
             new TCPEventSender(

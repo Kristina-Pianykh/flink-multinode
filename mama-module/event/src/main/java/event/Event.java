@@ -98,45 +98,81 @@ public abstract class Event extends Message {
   public static Event parse(String received) {
     String[] receivedParts = received.split("\\|");
     ArrayList<String> attributeList = new ArrayList<>();
-    if (receivedParts.length > 4)
-      attributeList.addAll(Arrays.asList(receivedParts).subList(4, receivedParts.length));
-
-    for (int i = attributeList.size() - 1; i >= 0; i--) {
-      String attribute = attributeList.get(i);
-      String cleanedAttribute = attribute.trim();
-
-      // Check if the cleaned string is empty (only whitespace)
-      if (cleanedAttribute.isEmpty()) {
-        // Remove the element from the list
-        attributeList.remove(i);
-      } else {
-        // Update the original element with the cleaned value
-        attributeList.set(i, cleanedAttribute);
-      }
-    }
     if (receivedParts[0].trim().equals("simple")) {
       // simple event: "simple" | eventID | timestamp | eventType | multiSinkQueryEnabled | optional
       // attributes
+      if (receivedParts.length > 4)
+        attributeList.addAll(Arrays.asList(receivedParts).subList(4, receivedParts.length));
+
+      for (int i = attributeList.size() - 1; i >= 0; i--) {
+        String attribute = attributeList.get(i);
+        String cleanedAttribute = attribute.trim();
+
+        // Check if the cleaned string is empty (only whitespace)
+        if (cleanedAttribute.isEmpty()) {
+          // Remove the element from the list
+          attributeList.remove(i);
+        } else {
+          // Update the original element with the cleaned value
+          attributeList.set(i, cleanedAttribute);
+        }
+      }
+
       return new SimpleEvent(
           receivedParts[1].trim(), // eventID
           parseTimestamp(receivedParts[2].trim()), // timestamp
           receivedParts[3].trim(), // eventType
           // multiSinkQueryEnabled,
           attributeList); // attributeList
+      //
     } else if (receivedParts[0].trim().equals("complex")) {
-      // complex event: "complex" | timestamp [can be creationTime] | eventType | numberOfEvents |
+      ComplexEvent ce = null;
+      // complex event: "complex" | eventID | timestamp [can be creationTime] | eventType |
+      // numberOfEvents |
       // (individual Event);(individual Event)[;...] | optional attributes
-      long timestamp = parseTimestamp(receivedParts[1].trim());
-      String eventType = receivedParts[2].trim();
+      String eventID = receivedParts[1].trim();
+      long timestamp = parseTimestamp(receivedParts[2].trim());
+      String eventType = receivedParts[3].trim();
       int numberOfEvents =
           Integer.parseInt(
-              receivedParts[3].trim()); // FIXME: Currently, we don't use this information at all.
-      ArrayList<SimpleEvent> eventList = parse_eventlist(receivedParts[4].trim());
-      ComplexEvent ce = new ComplexEvent(timestamp, eventType, eventList, attributeList);
+              receivedParts[4].trim()); // FIXME: Currently, we don't use this information at all.
+      ArrayList<SimpleEvent> eventList = parse_eventlist(receivedParts[5].trim());
+
+      try {
+        assert (eventID != null);
+        assert (timestamp > 0);
+        assert (eventType != null);
+        assert (numberOfEvents == eventList.size());
+        assert (numberOfEvents > 0);
+        assert (eventList.size() > 0);
+      } catch (AssertionError e) {
+        LOG.error(
+            "Failed to parse a complex event: {}. receivedParts: {}, eventID: {}, timestamp: {},"
+                + " eventType: {}, numberOfEvents: {}, eventList: {}. Error: {}",
+            received,
+            receivedParts,
+            eventID,
+            timestamp,
+            eventType,
+            numberOfEvents,
+            eventList,
+            e.getMessage());
+        System.exit(1);
+      }
+
+      ce = new ComplexEvent(eventID, timestamp, eventType, eventList, attributeList);
+      try {
+        assert ce != null;
+      } catch (AssertionError err) {
+        LOG.error(
+            "Failed to create a complex event from message {}. Error: {}",
+            received,
+            err.getMessage());
+        System.exit(1);
+      }
       return ce;
     } else {
       // incomprehensible message
-      // message = gpt4.interpretWhatThismeansAndConvertItToMyStandardFormat(message)
       throw new IllegalArgumentException(
           "Received message has wrong type: " + receivedParts[0].trim());
     }
