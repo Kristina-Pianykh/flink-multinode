@@ -71,8 +71,7 @@ public class SendToMonitor extends RichSinkFunction<Event> {
       } catch (InterruptedException e1) {
         e1.printStackTrace();
       }
-      LOG.error("Could not open socket on port " + port);
-      LOG.error("Trying again in 1 second...");
+      LOG.warn("Could not open socket on port {}. Trying again in 1 second...", port);
       socket = openSocket(port, attempt + 1);
     }
     return socket;

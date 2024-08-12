@@ -12,6 +12,10 @@ import org.apache.commons.cli.*;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.*;
 import org.apache.flink.core.fs.FileSystem;
@@ -19,6 +23,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,31 +111,45 @@ public class DataStreamJob {
     env.setParallelism(1);
 
     DataStream<Tuple2<Integer, Message>> inputStream = env.addSource(new OldSourceFunction(config));
-
-    inputStream.filter(
-        new FilterFunction<Tuple2<Integer, Message>>() {
-          @Override
-          public boolean filter(Tuple2<Integer, Message> srcIdMessage) {
-            if (srcIdMessage.f1 instanceof ControlEvent) {
-              LOG.debug("Control event in inputStream: {}", srcIdMessage.f1.toString());
-            }
-            return true;
-          }
-        });
-
-    // important check if node is one of the multi-sink nodes
-    if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
-      DataStream<Event> eventsForMonitoring =
-          inputStream
-              .map((tuple) -> tuple.f1)
-              .filter(e -> (e instanceof Event)) // TODO: test
-              .map(e -> (Event) e);
-      eventsForMonitoring.addSink(
-          new SendToMonitor(
-              config.nodeId,
-              config.hostAddress.port,
-              config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)));
-    }
+    DataStream<Tuple2<Integer, Message>> controlStream =
+        inputStream
+            .filter(e -> e.f1 instanceof ControlEvent)
+            .map(
+                new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Message>>() {
+                  @Override
+                  public Tuple2<Integer, Message> map(Tuple2<Integer, Message> srcIdMessage) {
+                    LOG.debug("Control event in controlStream: {}", srcIdMessage.f1.toString());
+                    try {
+                      assert srcIdMessage.f1 instanceof ControlEvent;
+                    } catch (AssertionError e) {
+                      LOG.error(
+                          "controlStream contains a non-ControlEvent: {}. Error: {}",
+                          srcIdMessage.f1.toString(),
+                          e.getMessage());
+                      System.exit(1);
+                    }
+                    return srcIdMessage;
+                  }
+                });
+    DataStream<Tuple2<Integer, Message>> eventStream =
+        inputStream
+            .filter(e -> e.f1 instanceof Event)
+            .map(
+                new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Message>>() {
+                  @Override
+                  public Tuple2<Integer, Message> map(Tuple2<Integer, Message> srcIdMessage) {
+                    try {
+                      assert srcIdMessage.f1 instanceof Event;
+                    } catch (AssertionError e) {
+                      LOG.error(
+                          "eventStream contains a non-Event type: {}. Error: {}",
+                          srcIdMessage.f1.toString(),
+                          e.getMessage());
+                      System.exit(1);
+                    }
+                    return srcIdMessage;
+                  }
+                });
 
     // TODO: remove this block?
     SingleOutputStreamOperator<Tuple2<Integer, Event>> monitored_stream =
@@ -186,31 +206,14 @@ public class DataStreamJob {
 
     List<DataStream<Event>> outputstreams_by_query =
         PatternFactory_generic.processQueries(
-            config.processing,
-            config,
-            inputStream
-                .map((tuple) -> tuple.f1)
-                .filter(e -> (e instanceof Event))
-                .map(e -> (Event) e),
-            1);
+            config.processing, config, eventStream.map((tuple) -> tuple.f1).map(e -> (Event) e), 1);
 
-    if (!outputstreams_by_query.isEmpty()) {
-      outputstreams_by_query.forEach(
-          stream ->
-              stream.addSink(
-                  new SendToMonitor(
-                      config.nodeId,
-                      config.hostAddress.port,
-                      config.rateMonitoringInputs.multiSinkNodes.contains(
-                          config.nodeId)))); // for debugging now it's only node 1
-    }
-
-    DataStream<Tuple2<Integer, Message>> outputStream;
-    if (outputstreams_by_query.isEmpty()) outputStream = inputStream;
+    DataStream<Tuple2<Integer, Message>> eventOutputStream;
+    if (outputstreams_by_query.isEmpty()) eventOutputStream = eventStream;
     else {
       DataStream<Event> union =
           outputstreams_by_query.stream().reduce(DataStream<Event>::union).get();
-      outputStream =
+      eventOutputStream =
           union
               .map(
                   new MapFunction<Event, Tuple2<Integer, Message>>() {
@@ -220,18 +223,95 @@ public class DataStreamJob {
                     }
                   })
               .union(
-                  inputStream); // FIXME: this will create duplicate tuples with the same event, if
+                  eventStream); // FIXME: this will create duplicate tuples with the same event, if
       // union contains any of the events in inputStream
 
       // TODO: create sink that asserts that no event in inputstream.map(t -> t.f1) is in union
       // (pattery factory consumes *all* input events)
-
-      // TODO:
-
     }
 
-    // DataStream<Tuple2<Integer, Message>> filteredOutputStream =
-    outputStream.filter(
+    DataStream<Tuple2<Integer, Message>> deduplicatedEventStream =
+        eventOutputStream
+            .keyBy(
+                new KeySelector<Tuple2<Integer, Message>, String>() {
+                  @Override
+                  public String getKey(Tuple2<Integer, Message> srcIdEvent) throws Exception {
+                    String eventID = null;
+
+                    try {
+                      assert srcIdEvent.f1 instanceof Event;
+                      Event event = (Event) srcIdEvent.f1;
+                      eventID = event.getID();
+                    } catch (AssertionError e) {
+                      LOG.error(
+                          "deduplicatedEventStream contains a non-Event type: {}. Error: {}",
+                          srcIdEvent.f1.toString(),
+                          e.getMessage());
+                      System.exit(1);
+                    } catch (Exception e) {
+                      LOG.error(
+                          "deduplicatedEventStream failed to get the key for the event: {}. Error:"
+                              + " {}",
+                          srcIdEvent.f1.toString(),
+                          e.getMessage());
+                      System.exit(1);
+                    }
+                    try {
+                      assert eventID != null;
+                    } catch (AssertionError err) {
+                      LOG.error(
+                          "deduplicatedEventStream; eventID is null for event: {}",
+                          srcIdEvent.f1.toString());
+                      System.exit(1);
+                    }
+                    return eventID;
+                  }
+                },
+                TypeInformation.of(String.class))
+            .process(
+                new KeyedProcessFunction<
+                    String, Tuple2<Integer, Message>, Tuple2<Integer, Message>>() {
+                  private transient ValueState<Boolean> hasSeen;
+
+                  @Override
+                  public void open(Configuration parameters) {
+                    ValueStateDescriptor<Boolean> descriptor =
+                        new ValueStateDescriptor<>("hasSeen", TypeInformation.of(Boolean.class));
+                    hasSeen = getRuntimeContext().getState(descriptor);
+                  }
+
+                  @Override
+                  public void processElement(
+                      Tuple2<Integer, Message> srcIdEvent,
+                      Context ctx,
+                      Collector<Tuple2<Integer, Message>> out)
+                      throws Exception {
+                    // System.out.println("Processing element: " + srcIdEvent);
+                    if (hasSeen.value() == null) {
+                      // System.out.println("First time seeing element: " + value);
+                      hasSeen.update(true);
+                      out.collect(srcIdEvent);
+                    } else {
+                      LOG.debug(
+                          "deduplicatedEventStream; processElement(): already seen event: "
+                              + srcIdEvent);
+                    }
+                  }
+                });
+
+    // important check if node is one of the multi-sink nodes
+    if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
+      deduplicatedEventStream
+          .map((tuple) -> tuple.f1)
+          .map(e -> (Event) e)
+          .addSink(
+              new SendToMonitor(
+                  config.nodeId,
+                  config.hostAddress.port,
+                  config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)));
+    }
+
+    deduplicatedEventStream.filter(
         new FilterFunction<Tuple2<Integer, Message>>() {
           @Override
           public boolean filter(Tuple2<Integer, Message> srcIdMessage) {
@@ -254,7 +334,8 @@ public class DataStreamJob {
     if (config.nodeId == config.rateMonitoringInputs.fallbackNode) {
       LOG.debug("I am the fallback node");
       DataStream<Tuple2<Integer, Event>> nonPartitioningInputStream =
-          outputStream
+          deduplicatedEventStream // FIXME?? use eventStream instead of deduplicatedEventStream???
+              // because dedup stream produced on 1x window size?
               .filter(e -> (e.f1 instanceof Event))
               .map(
                   new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Event>>() {
@@ -284,7 +365,7 @@ public class DataStreamJob {
                   });
 
       DataStream<Tuple2<Integer, Event>> flushedPartitioningInputsStream =
-          inputStream
+          deduplicatedEventStream
               .filter(e -> (e.f1 instanceof Event))
               .map(
                   new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Event>>() {
@@ -348,13 +429,14 @@ public class DataStreamJob {
           });
     }
 
-    // filteredOutputStream.addSink(
-    outputStream.addSink(
-        new TCPEventSender(
-            config.forwarding.addressBookTCP,
-            config.forwarding.table,
-            config.forwarding.updatedTable,
-            config.nodeId)); // The cast expresses the fact that a TCPEventSender is a
+    eventOutputStream
+        .union(controlStream)
+        .addSink(
+            new TCPEventSender(
+                config.forwarding.addressBookTCP,
+                config.forwarding.table,
+                config.forwarding.updatedTable,
+                config.nodeId)); // The cast expresses the fact that a TCPEventSender is a
     // SinkFunction<? extends Event>, not just a SInkFunction<Event>. I can't specify it in java
     // though.
 
