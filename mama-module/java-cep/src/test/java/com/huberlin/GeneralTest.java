@@ -45,7 +45,7 @@ class GeneralTest {
     simpleEvents.add(simpleEvent3);
 
     ComplexEvent complexEvent =
-        new ComplexEvent(getCurrentTimeInMicroseconds(), "_", simpleEvents, null);
+        new ComplexEvent(null, getCurrentTimeInMicroseconds(), "_", simpleEvents, null);
 
     System.out.println(complexEvent.toString());
     System.out.println("complexEvent.multiSinkQueryEnabled: " + complexEvent.multiSinkQueryEnabled);
@@ -105,10 +105,18 @@ class GeneralTest {
     ArrayList<SimpleEvent> eventList = new ArrayList<>();
     eventList.add(D);
     eventList.add(A);
-    ComplexEvent ce =
-        new ComplexEvent(getCurrentTimeInMicroseconds(), "SEQ(D, A)", eventList, new ArrayList<>());
+    ComplexEvent ce = null;
+    ce = new ComplexEvent(null, getCurrentTimeInMicroseconds(), "SEQ(D, A)", eventList, null);
     System.out.println(ce.toString());
-    System.out.println(ce.getEventType());
+
+    ce =
+        (ComplexEvent)
+            Event.parse(
+                "complex | dddd | 21:23:44:253694 | SEQ(F, E) | 2 | (21:23:09:000000, 374735, F,"
+                    + " true) ;(21:23:44:000000, f9bb6169, E, true) | true | (21:23:09:000000,"
+                    + " 374735, F, true) ;(21:23:44:000000, f9bb6169, E, true) | true");
+
+    System.out.println(ce.toString());
   }
 
   @Test
@@ -218,5 +226,20 @@ class GeneralTest {
         ControlEvent.parse("control | 02:34:13:570350 | 02:34:21:570350");
     assert controlEvent.isPresent();
     assert controlEvent.get() instanceof ControlEvent;
+  }
+
+  @Test
+  void eventIDComplexEvent() {
+    ComplexEvent ce =
+        (ComplexEvent)
+            Event.parse(
+                "complex | 38a8f1ak | 19:37:55:824436 | SEQ(F, D, E) | 3 | (19:37:36:000000,"
+                    + " bf4778d4, D, true) ;(19:37:17:000000, 842511, F, true) ;(19:37:44:000000,"
+                    + " f9bb6169, E, true) | true");
+    System.out.println(ce.getID());
+    List<String> simpleEventHashes = List.of("bf4778d4", "842511", "f9bb6169");
+    // String concat = simpleEventHashes.stream().reduce("", String::concat);
+    // System.out.println(concat);
+    // assert ce.getID().equals(concat);
   }
 }

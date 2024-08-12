@@ -39,6 +39,7 @@ public class TCPEventSender implements SinkFunction<Tuple2<Integer, Message>> {
   /** Called by flink to send events */
   @Override
   public void invoke(Tuple2<Integer, Message> tuple_of_source_node_id_and_event, Context ignored) {
+    LOG.debug("Received event: {}", tuple_of_source_node_id_and_event.f1.toString());
     Integer srcNodeId = tuple_of_source_node_id_and_event.f0;
     Message message = tuple_of_source_node_id_and_event.f1;
 

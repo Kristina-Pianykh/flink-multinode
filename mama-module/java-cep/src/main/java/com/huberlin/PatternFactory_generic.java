@@ -304,11 +304,24 @@ public class PatternFactory_generic {
                     (LocalTime.now().toNanoOfDay()
                         / 1000L); // FIXME: What if it is almost midnight? Then the monsters come
                 // out!
-                ComplexEvent new_complex_event =
+                ComplexEvent newComplexEvent = null;
+                newComplexEvent =
                     new ComplexEvent(
-                        creation_time, q.subqueries.get(num_subquery), newEventList, null);
-                LOG.info("Complex event created: {}", new_complex_event);
-                return (Event) new_complex_event;
+                        null, creation_time, q.subqueries.get(num_subquery), newEventList, null);
+                try {
+                  assert newComplexEvent != null;
+                } catch (AssertionError err) {
+                  LOG.error(
+                      "Failed to create a complex event from creation_time: {},"
+                          + " q.subqueries.get(num_queries): {}, newEventList: {}. Error: {}",
+                      creation_time,
+                      q.subqueries.get(num_subquery),
+                      newEventList,
+                      err.getMessage());
+                  System.exit(1);
+                }
+                LOG.info("Complex event created: {}", newComplexEvent);
+                return (Event) newComplexEvent;
               }
             });
 

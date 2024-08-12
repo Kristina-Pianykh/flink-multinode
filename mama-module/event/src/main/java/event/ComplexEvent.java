@@ -25,6 +25,7 @@ public class ComplexEvent extends Event implements Serializable {
   private final long lowestTimestamp;
 
   public ComplexEvent(
+      String eventID,
       long creationTimestamp,
       String eventType,
       ArrayList<SimpleEvent> eventList,
@@ -38,20 +39,25 @@ public class ComplexEvent extends Event implements Serializable {
     // fill out the redundant fields (for performance optimization only)
     eventTypeToTimestamp = new HashMap<>();
     eventTypeToEventID = new HashMap<>();
-    String event_ID = "";
     long highest_timestamp = Long.MIN_VALUE;
     long lowest_timestamp = Long.MAX_VALUE;
+
     for (SimpleEvent e : eventList) {
       highest_timestamp = Math.max(highest_timestamp, e.timestamp);
       lowest_timestamp = Math.min(lowest_timestamp, e.timestamp);
       eventTypeToTimestamp.put(e.eventType, e.timestamp);
       eventTypeToEventID.put(e.eventType, e.eventID);
-      event_ID = event_ID + e.eventID;
     }
+
+    if (eventID == null) {
+      this.eventID = "";
+      for (SimpleEvent e : eventList) {
+        this.eventID = this.eventID + e.getID();
+      }
+    } else this.eventID = eventID;
 
     this.highestTimestamp = highest_timestamp;
     this.lowestTimestamp = lowest_timestamp;
-    this.eventID = event_ID;
     this.multiSinkQueryEnabled = multiSinkQueryEnabledForAllSimpleEvents(this.eventList);
   }
 
@@ -131,6 +137,7 @@ public class ComplexEvent extends Event implements Serializable {
 
   public String toString() {
     StringBuilder eventString = new StringBuilder(this.isSimple() ? "simple" : "complex");
+    eventString.append(" | ").append(this.eventID);
     eventString.append(" | ").append(formatTimestamp(this.creation_timestamp));
     eventString.append(" | ").append(this.eventType);
     eventString.append(" | ").append(this.getNumberOfEvents());
