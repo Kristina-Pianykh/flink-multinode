@@ -61,7 +61,7 @@ fi;
 echo "Path to the trace dir: $TRACE_DIR"
 
 #build the jar
-cd $JAVA_BASE_DIR && mvn -pl java-cep clean package && cd $DEPLOYING_DIR
+# cd $JAVA_BASE_DIR && mvn -pl java-cep clean package && cd $DEPLOYING_DIR
 
 #start all nodes
 JAR="$JAVA_PROJ_DIR/target/java-cep-1.0-SNAPSHOT.jar"
@@ -77,6 +77,7 @@ for ((i=0; i<N_NODES; i++)); do
   java -ea --add-opens java.base/java.lang=ALL-UNNAMED \
            --add-opens=java.base/java.net=ALL-UNNAMED \
            --add-opens=java.base/java.util=ALL-UNNAMED \
+           --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED \
             -jar "$JAR" \
             -flinkconfig "$JAVA_PROJ_DIR/conf" \
             -localconfig "$INPUT_DIR/config_$i.json" \

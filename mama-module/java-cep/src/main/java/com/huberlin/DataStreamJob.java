@@ -1,7 +1,6 @@
 package com.huberlin.javacep;
 
-import com.huberlin.event.ComplexEvent;
-import com.huberlin.event.Event;
+import com.huberlin.event.*;
 import com.huberlin.javacep.communication.OldSourceFunction;
 import com.huberlin.javacep.communication.SendToMonitor;
 import com.huberlin.javacep.communication.TCPEventSender;
@@ -105,11 +104,26 @@ public class DataStreamJob {
     // Only one engine-thread will work (output is displayed in the same way the packets arrive)
     env.setParallelism(1);
 
-    DataStream<Tuple2<Integer, Event>> inputStream = env.addSource(new OldSourceFunction(config));
+    DataStream<Tuple2<Integer, Message>> inputStream = env.addSource(new OldSourceFunction(config));
+
+    inputStream.filter(
+        new FilterFunction<Tuple2<Integer, Message>>() {
+          @Override
+          public boolean filter(Tuple2<Integer, Message> srcIdMessage) {
+            if (srcIdMessage.f1 instanceof ControlEvent) {
+              LOG.debug("Control event in inputStream: {}", srcIdMessage.f1.toString());
+            }
+            return true;
+          }
+        });
 
     // important check if node is one of the multi-sink nodes
     if (config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)) {
-      DataStream<Event> eventsForMonitoring = inputStream.map((tuple) -> tuple.f1);
+      DataStream<Event> eventsForMonitoring =
+          inputStream
+              .map((tuple) -> tuple.f1)
+              .filter(e -> (e instanceof Event)) // TODO: test
+              .map(e -> (Event) e);
       eventsForMonitoring.addSink(
           new SendToMonitor(
               config.nodeId,
@@ -120,6 +134,14 @@ public class DataStreamJob {
     // TODO: remove this block?
     SingleOutputStreamOperator<Tuple2<Integer, Event>> monitored_stream =
         inputStream
+            .filter(e -> (e.f1 instanceof Event))
+            .map(
+                new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Event>>() {
+                  @Override
+                  public Tuple2<Integer, Event> map(Tuple2<Integer, Message> srcIdMsg) {
+                    return new Tuple2<>(srcIdMsg.f0, (Event) srcIdMsg.f1);
+                  }
+                })
             .map(
                 new RichMapFunction<Tuple2<Integer, Event>, Tuple2<Integer, Event>>() {
                   private transient MetricsRecorder.MetricsWriter memory_usage_writer;
@@ -164,7 +186,13 @@ public class DataStreamJob {
 
     List<DataStream<Event>> outputstreams_by_query =
         PatternFactory_generic.processQueries(
-            config.processing, config, inputStream.map((tuple) -> tuple.f1), 1);
+            config.processing,
+            config,
+            inputStream
+                .map((tuple) -> tuple.f1)
+                .filter(e -> (e instanceof Event))
+                .map(e -> (Event) e),
+            1);
 
     if (!outputstreams_by_query.isEmpty()) {
       outputstreams_by_query.forEach(
@@ -177,7 +205,7 @@ public class DataStreamJob {
                           config.nodeId)))); // for debugging now it's only node 1
     }
 
-    DataStream<Tuple2<Integer, Event>> outputStream;
+    DataStream<Tuple2<Integer, Message>> outputStream;
     if (outputstreams_by_query.isEmpty()) outputStream = inputStream;
     else {
       DataStream<Event> union =
@@ -185,10 +213,10 @@ public class DataStreamJob {
       outputStream =
           union
               .map(
-                  new MapFunction<Event, Tuple2<Integer, Event>>() {
+                  new MapFunction<Event, Tuple2<Integer, Message>>() {
                     @Override
-                    public Tuple2<Integer, Event> map(Event e) {
-                      return new Tuple2<Integer, Event>(config.nodeId, e);
+                    public Tuple2<Integer, Message> map(Event e) {
+                      return new Tuple2<>(config.nodeId, e);
                     }
                   })
               .union(
@@ -202,21 +230,23 @@ public class DataStreamJob {
 
     }
 
-    DataStream<Tuple2<Integer, Event>> filteredOutputStream =
-        outputStream.filter(
-            new FilterFunction<Tuple2<Integer, Event>>() {
-              @Override
-              public boolean filter(Tuple2<Integer, Event> event_with_source_id) {
-                Event e = event_with_source_id.f1;
-                int source_node_id = event_with_source_id.f0;
-                if (source_node_id == config.nodeId && !e.isSimple()) {
-                  assert (e instanceof ComplexEvent);
-                  ComplexEvent ce = (ComplexEvent) e;
-                  System.out.println("LATENCYYYYYYYYYYYYYYYYYYYY " + (long) ce.getLatencyMs());
-                }
-                return true;
-              }
-            });
+    // DataStream<Tuple2<Integer, Message>> filteredOutputStream =
+    outputStream.filter(
+        new FilterFunction<Tuple2<Integer, Message>>() {
+          @Override
+          public boolean filter(Tuple2<Integer, Message> srcIdMessage) {
+            if (srcIdMessage.f1 instanceof ControlEvent) return true;
+            assert srcIdMessage.f1 instanceof Event;
+            Event e = (Event) srcIdMessage.f1;
+            int srcId = srcIdMessage.f0;
+            if (srcId == config.nodeId && !e.isSimple()) {
+              assert (e instanceof ComplexEvent);
+              ComplexEvent ce = (ComplexEvent) e;
+              System.out.println("LATENCYYYYYYYYYYYYYYYYYYYY " + (long) ce.getLatencyMs());
+            }
+            return true;
+          }
+        });
 
     /* for fallback node only: filter out the non-partitioning inputs for
     to apply a pattern with 2x window size for retrospective matching
@@ -224,45 +254,64 @@ public class DataStreamJob {
     if (config.nodeId == config.rateMonitoringInputs.fallbackNode) {
       LOG.debug("I am the fallback node");
       DataStream<Tuple2<Integer, Event>> nonPartitioningInputStream =
-          outputStream.filter(
-              new FilterFunction<Tuple2<Integer, Event>>() {
+          outputStream
+              .filter(e -> (e.f1 instanceof Event))
+              .map(
+                  new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Event>>() {
+                    @Override
+                    public Tuple2<Integer, Event> map(Tuple2<Integer, Message> srcIdMsg) {
+                      return new Tuple2<>(srcIdMsg.f0, (Event) srcIdMsg.f1);
+                    }
+                  })
+              .filter(
+                  new FilterFunction<Tuple2<Integer, Event>>() {
 
-                @Override
-                public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
-                  Event event = srcIdEvent.f1;
-                  LOG.debug(
-                      "Event {} is non-partitioning: {}",
-                      event.getEventType(),
-                      config.rateMonitoringInputs.nonPartitioningInputs.contains(
-                          event.getEventType()));
-                  if (config.rateMonitoringInputs.nonPartitioningInputs.contains(
-                      event.getEventType())) {
-                    LOG.debug("Filtered out a non-partitioning input: {}", event.toString());
-                    return true;
-                  }
-                  return false;
-                }
-              });
+                    @Override
+                    public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
+                      Event event = srcIdEvent.f1;
+                      LOG.debug(
+                          "Event {} is non-partitioning: {}",
+                          event.getEventType(),
+                          config.rateMonitoringInputs.nonPartitioningInputs.contains(
+                              event.getEventType()));
+                      if (config.rateMonitoringInputs.nonPartitioningInputs.contains(
+                          event.getEventType())) {
+                        LOG.debug("Filtered out a non-partitioning input: {}", event.toString());
+                        return true;
+                      }
+                      return false;
+                    }
+                  });
 
       DataStream<Tuple2<Integer, Event>> flushedPartitioningInputsStream =
-          inputStream.filter(
-              new FilterFunction<Tuple2<Integer, Event>>() {
+          inputStream
+              .filter(e -> (e.f1 instanceof Event))
+              .map(
+                  new MapFunction<Tuple2<Integer, Message>, Tuple2<Integer, Event>>() {
+                    @Override
+                    public Tuple2<Integer, Event> map(Tuple2<Integer, Message> srcIdMsg) {
+                      return new Tuple2<>(srcIdMsg.f0, (Event) srcIdMsg.f1);
+                    }
+                  })
+              .filter(
+                  new FilterFunction<Tuple2<Integer, Event>>() {
 
-                @Override
-                public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
-                  Event event = srcIdEvent.f1;
-                  boolean isPartitioningInput =
-                      config.rateMonitoringInputs.partitioningInput.equals(event.getEventType());
-                  boolean isFlushedEvent = event.isFlushed();
-                  if (isFlushedEvent) {
-                    LOG.debug("Detected flushed event: {}", event);
-                    LOG.debug("isPartitioningInput = {}", isPartitioningInput);
-                    LOG.debug("isFlushedEvent = {}", isFlushedEvent);
-                  }
-                  if (isPartitioningInput && isFlushedEvent) return true;
-                  else return false;
-                }
-              });
+                    @Override
+                    public boolean filter(Tuple2<Integer, Event> srcIdEvent) {
+                      Event event = srcIdEvent.f1;
+                      boolean isPartitioningInput =
+                          config.rateMonitoringInputs.partitioningInput.equals(
+                              event.getEventType());
+                      boolean isFlushedEvent = event.isFlushed();
+                      if (isFlushedEvent) {
+                        LOG.debug("Detected flushed event: {}", event);
+                        LOG.debug("isPartitioningInput = {}", isPartitioningInput);
+                        LOG.debug("isFlushedEvent = {}", isFlushedEvent);
+                      }
+                      if (isPartitioningInput && isFlushedEvent) return true;
+                      else return false;
+                    }
+                  });
 
       DataStream<Tuple2<Integer, Event>> shiftMultiSinkQueryInputs =
           nonPartitioningInputStream.union(flushedPartitioningInputsStream);
@@ -299,10 +348,12 @@ public class DataStreamJob {
           });
     }
 
-    filteredOutputStream.addSink(
+    // filteredOutputStream.addSink(
+    outputStream.addSink(
         new TCPEventSender(
             config.forwarding.addressBookTCP,
             config.forwarding.table,
+            config.forwarding.updatedTable,
             config.nodeId)); // The cast expresses the fact that a TCPEventSender is a
     // SinkFunction<? extends Event>, not just a SInkFunction<Event>. I can't specify it in java
     // though.

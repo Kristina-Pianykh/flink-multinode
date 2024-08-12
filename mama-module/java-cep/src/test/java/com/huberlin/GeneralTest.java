@@ -3,6 +3,7 @@ package com.huberlin.javacep;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.huberlin.event.ComplexEvent;
+import com.huberlin.event.ControlEvent;
 import com.huberlin.event.Event;
 import com.huberlin.event.SimpleEvent;
 import com.huberlin.javacep.config.NodeConfig;
@@ -194,5 +195,28 @@ class GeneralTest {
       System.out.println("Failed to initialize a scheduled task");
       e.printStackTrace();
     }
+  }
+
+  @Test
+  void instanceOf() {
+    SimpleEvent simpleEvent1 = (SimpleEvent) Event.parse("simple | c46c099b | 18:38:45:000000 | D");
+    System.out.println(simpleEvent1.attributeList);
+    SimpleEvent simpleEvent2 =
+        (SimpleEvent) Event.parse("simple | c46c099b | 18:38:45:000000 | D | true");
+    SimpleEvent simpleEvent3 =
+        (SimpleEvent) Event.parse("simple | c46c099b | 18:38:45:000000 | D | false");
+    ComplexEvent ce =
+        (ComplexEvent)
+            Event.parse(
+                "complex | 21:23:44:253694 | SEQ(F, E) | 2 | (21:23:09:000000, 374735, F, true)"
+                    + " ;(21:23:44:000000, f9bb6169, E, true) | true | (21:23:09:000000, 374735, F,"
+                    + " true) ;(21:23:44:000000, f9bb6169, E, true) | true");
+    List<Event> eventList = List.of(simpleEvent1, simpleEvent2, simpleEvent3, ce);
+    for (Event e : eventList) assert e instanceof Event;
+
+    Optional<ControlEvent> controlEvent =
+        ControlEvent.parse("control | 02:34:13:570350 | 02:34:21:570350");
+    assert controlEvent.isPresent();
+    assert controlEvent.get() instanceof ControlEvent;
   }
 }
