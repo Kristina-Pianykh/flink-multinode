@@ -209,9 +209,39 @@ public class PatternFactory_generic {
     Pattern<Event, Event> p =
         Pattern.<Event>begin(firstPatternName)
             .where(checkEventTypeFirst(firstEventType, firstPatternName)) // get first event type
+            .where(
+                new SimpleCondition<Event>() {
+                  @Override
+                  public boolean filter(Event e) {
+                    boolean isMultiSinkQuery =
+                        q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
+                    boolean isNonFallbackNode =
+                        config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
+                            && (config.rateMonitoringInputs.fallbackNode != config.nodeId);
+                    if (isMultiSinkQuery && isNonFallbackNode && !e.multiSinkQueryEnabled) {
+                      return false;
+                    }
+                    return true;
+                  }
+                })
             .followedByAny(secondPatternName)
             .where(
                 checkEventTypeSecond(secondEventType, secondPatternName)) // get second event type
+            .where(
+                new SimpleCondition<Event>() {
+                  @Override
+                  public boolean filter(Event e) {
+                    boolean isMultiSinkQuery =
+                        q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
+                    boolean isNonFallbackNode =
+                        config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
+                            && (config.rateMonitoringInputs.fallbackNode != config.nodeId);
+                    if (isMultiSinkQuery && isNonFallbackNode && !e.multiSinkQueryEnabled) {
+                      return false;
+                    }
+                    return true;
+                  }
+                })
             .where(
                 new IterativeCondition<Event>() { // Check timestamps, sequence and id constraints
                   long seed = 12345L;
