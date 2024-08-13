@@ -149,9 +149,10 @@ public class ScheduledTask implements Runnable {
     LOG.info("Forwarding table updated successfully");
     LOG.info("Forwarding table after update: {}", this.fwdTableRef.get().toString());
     LOG.info(
-        "===============FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE:" + " {}===============",
-        this.eventBuffer.size());
-    LOG.info(this.eventBuffer.toString());
+        "FLUSHING BUFFERED PARTITIONING INPUTS OF SIZE: {}. Buffer: {}",
+        this.eventBuffer.size(),
+        this.eventBuffer.toString());
+    // LOG.info(this.eventBuffer.toString());
 
     try {
       assert (this.eventBuffer.stream()
