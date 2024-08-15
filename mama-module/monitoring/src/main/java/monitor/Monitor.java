@@ -10,10 +10,17 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.cli.*;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Monitor {
+  static {
+    // Load log4j.properties from the classpath
+    Configurator.initialize(
+        null, Monitor.class.getClassLoader().getResource("log4j2.xml").getPath());
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(Monitor.class);
 
   private static CommandLine parse_cmdline_args(String[] args) {
@@ -85,16 +92,15 @@ public class Monitor {
                 coordinatorPort))
         .start();
 
-    Thread fileWriter = new Thread(new FileWrite(Integer.parseInt(nodeId), totalRates));
-    fileWriter.start();
+    // Thread fileWriter = new Thread(new FileWrite(Integer.parseInt(nodeId), totalRates));
+    // fileWriter.start();
 
     try (ServerSocket serverSocket = new ServerSocket(monitorPort)) {
       LOG.info("Server started. Listening for connections on port " + monitorPort + "...");
       while (true) {
         Socket socket = serverSocket.accept();
         socket.setSoTimeout(socketTimeOutMillis); // in milies; 11 min
-        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates, fileWriter)
-            .start();
+        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates).start();
         LOG.info("Main function, buffer size: " + buffer.size());
       }
     } catch (IOException e) {
@@ -110,22 +116,27 @@ public class Monitor {
     private BlockingEventBuffer buffer;
     private RateMonitoringInputs rateMonitoringInputs;
     private HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
-    private final String filePath = "totalRates" + this.nodeId + ".csv";
-    public Thread fileWriter;
+    private final String filePath;
 
     public ClientHandler(
         String nodeId,
         Socket socket,
         BlockingEventBuffer buffer,
         RateMonitoringInputs rateMonitoringInputs,
-        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates,
-        Thread fileWriter) {
+        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates) {
       this.nodeId = nodeId;
       this.socket = socket;
       this.buffer = buffer;
       this.rateMonitoringInputs = rateMonitoringInputs;
       this.totalRates = totalRates;
-      this.fileWriter = fileWriter;
+      this.filePath = "totalRates" + this.nodeId + ".csv";
+
+      // Initialize the CSV file with headers
+      try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(filePath, true)))) {
+        out.println("event_type,timestamp,timestamp_long");
+      } catch (IOException e) {
+        LOG.error("Error initializing CSV file: {}", e.getMessage());
+      }
     }
 
     @Override
@@ -151,6 +162,8 @@ public class Monitor {
               LocalTime currTime = LocalTime.now();
               DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss:SSSSSS");
               LOG.info("{} was received at: {}", event, currTime.format(formatter));
+              writeEventToCSV(
+                  event.getEventType(), currTime.format(formatter), event.getTimestamp());
 
               boolean insertSucess = false;
               boolean relevantEvent =
@@ -186,16 +199,17 @@ public class Monitor {
 
           } catch (SocketTimeoutException ex) {
             LOG.warn("Socket timed out!");
-            LOG.info("Stopping the file writer thread...");
-            ((FileWrite) fileWriter).terminate();
-            try {
-              fileWriter.join();
-
-            } catch (InterruptedException e) {
-              LOG.error(
-                  "Joining of fileWriter thread has been interrupted. Error: {}", e.getMessage());
-            }
-            LOG.info("File writer thread stopped.");
+            // LOG.info("Stopping the file writer thread...");
+            // ((FileWrite) fileWriter).terminate();
+            // try {
+            //   fileWriter.join();
+            //
+            // } catch (InterruptedException e) {
+            //   LOG.error(
+            //       "Joining of fileWriter thread has been interrupted. Error: {}",
+            // e.getMessage());
+            // }
+            // LOG.info("File writer thread stopped.");
             socket.close();
             System.exit(1);
 
@@ -214,6 +228,15 @@ public class Monitor {
         } catch (IOException e) {
           e.printStackTrace();
         }
+      }
+    }
+
+    private void writeEventToCSV(String eventType, String timestamp, Long timestampLong) {
+      try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(filePath, true)))) {
+        out.println(eventType + "," + timestamp + "," + timestampLong);
+        LOG.info("Wrote event to CSV: {}, {}", eventType, timestamp);
+      } catch (IOException e) {
+        LOG.error("Error writing to CSV file: {}", e.getMessage());
       }
     }
   }

@@ -11,8 +11,11 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MonitoringData implements Runnable {
+  private static final Logger LOG = LoggerFactory.getLogger(MonitoringData.class);
   final long timeWindow = 10;
   final long timeSlide = 1;
   long cutoffTimestamp;
@@ -58,7 +61,7 @@ public class MonitoringData implements Runnable {
 
     this.nodesPerItem.forEach(
         (k, v) -> {
-          System.out.println("Item: " + k + " Nodes: " + v);
+          LOG.debug("Item: " + k + " Nodes: " + v);
         });
     this.nodeId = nodeId;
     this.nodePort = nodePort;
@@ -94,11 +97,12 @@ public class MonitoringData implements Runnable {
   }
 
   public void updateAllRates() {
-    System.out.println("\nBuffer size before dropping old events: " + this.buffer.size());
-    System.out.println(this.buffer.toString());
-    System.out.println(
-        "Dropping events with timestamp <= " + TimeUtils.format(this.cutoffTimestamp));
-    System.out.println("Buffer size before dropping old events: " + this.buffer.size());
+    LOG.info(
+        "\nBuffer size before dropping old events: {}; Buffer: {}",
+        this.buffer.size(),
+        this.buffer.toString());
+    LOG.info("Dropping events with timestamp <= " + TimeUtils.format(this.cutoffTimestamp));
+    LOG.info("Buffer size before dropping old events: " + this.buffer.size());
     for (String eventType : nonPartInputRates.keySet()) {
       Double newRate = updateRates(buffer, eventType);
       nonPartInputRates.put(eventType, newRate);
@@ -111,8 +115,9 @@ public class MonitoringData implements Runnable {
       Double newRate = updateRates(buffer, eventType);
       matchRates.put(eventType, newRate);
     }
-    System.out.println("Buffer size after dropping old events: " + this.buffer.size() + "\n");
-    System.out.println(this.buffer.toString());
+    LOG.info(
+        "Buffer size after dropping old events: {}; Buffer: {}" + this.buffer.size(),
+        this.buffer.toString());
   }
 
   public boolean inequalityHolds() {
@@ -127,7 +132,7 @@ public class MonitoringData implements Runnable {
     }
     Double totalRhs = totalNonPartInputRate * this.steinerTreeSize + totalMatchRate;
     if (totalPartInputRate < totalRhs) {
-      System.out.println("Partitioning input rate is too low for the multi-sink placement");
+      LOG.info("Partitioning input rate is too low for the multi-sink placement");
       String msg =
           "Partitioning input rate: "
               + totalPartInputRate
@@ -149,38 +154,56 @@ public class MonitoringData implements Runnable {
   }
 
   public void printRates() {
-    System.out.println("Non-partitioning input rates:");
+    // System.out.println("Non-partitioning input rates:");
     for (String eventType : nonPartInputRates.keySet()) {
-      System.out.println(
-          eventType
-              + ": "
-              + nonPartInputRates.get(eventType)
-              + " * "
-              + nodesPerItem.get(eventType)
-              + " = "
-              + nonPartInputRates.get(eventType) * nodesPerItem.get(eventType));
+      LOG.info(
+          "Non-partitioning input rate for {}: {} * {} = {}",
+          eventType,
+          nonPartInputRates.get(eventType),
+          nodesPerItem.get(eventType),
+          nonPartInputRates.get(eventType) * nodesPerItem.get(eventType));
+      // System.out.println(
+      //     eventType
+      //         + ": "
+      //         + nonPartInputRates.get(eventType)
+      //         + " * "
+      //         + nodesPerItem.get(eventType)
+      //         + " = "
+      //         + nonPartInputRates.get(eventType) * nodesPerItem.get(eventType));
     }
-    System.out.println("Partitioning input rates:");
+    // System.out.println("Partitioning input rates:");
     for (String eventType : partInputRates.keySet()) {
-      System.out.println(
-          eventType
-              + ": "
-              + partInputRates.get(eventType)
-              + " * "
-              + nodesPerItem.get(eventType)
-              + " = "
-              + partInputRates.get(eventType) * nodesPerItem.get(eventType));
+      LOG.info(
+          "Partitioning input rate for {}: {} * {} = {}",
+          eventType,
+          partInputRates.get(eventType),
+          nodesPerItem.get(eventType),
+          partInputRates.get(eventType) * nodesPerItem.get(eventType));
+      // System.out.println(
+      //     eventType
+      //         + ": "
+      //         + partInputRates.get(eventType)
+      //         + " * "
+      //         + nodesPerItem.get(eventType)
+      //         + " = "
+      //         + partInputRates.get(eventType) * nodesPerItem.get(eventType));
     }
-    System.out.println("Match rates:");
+    // System.out.println("Match rates:");
     for (String eventType : matchRates.keySet()) {
-      System.out.println(
-          eventType
-              + ": "
-              + matchRates.get(eventType)
-              + " * "
-              + nodesPerItem.get(eventType)
-              + " = "
-              + matchRates.get(eventType) * nodesPerItem.get(eventType));
+      LOG.info(
+          "Match rate for {}: {} * {} = {}",
+          eventType,
+          matchRates.get(eventType),
+          nodesPerItem.get(eventType),
+          matchRates.get(eventType) * nodesPerItem.get(eventType));
+      // System.out.println(
+      //     eventType
+      //         + ": "
+      //         + matchRates.get(eventType)
+      //         + " * "
+      //         + nodesPerItem.get(eventType)
+      //         + " = "
+      //         + matchRates.get(eventType) * nodesPerItem.get(eventType));
     }
   }
 
@@ -194,46 +217,43 @@ public class MonitoringData implements Runnable {
       writer.println("end-of-the-stream\n");
       writer.close();
       socket.close();
-      System.out.println("Sent control event: " + controlEvent.toString() + " to port " + port);
+      LOG.info("Sent control event {} to port {}", controlEvent.toString(), port);
     } catch (IOException e) {
-      System.out.println(
-          "Failure to establish connection from monitor to port "
-              + port
-              + " for control event. Error: "
-              + e);
-      e.printStackTrace();
+      LOG.error(
+          "Failure to establish connection from monitor to port {} for control event {}. Error: {}",
+          port,
+          controlEvent,
+          e.getMessage());
     }
   }
 
   public void run() {
-    System.out.println("Monitoring thread started. Cuttoff timestamp: " + cutoffTimestamp);
+    LOG.info("Monitoring thread started. Cuttoff timestamp: " + cutoffTimestamp);
     int inequalityViolationsInARow = 0;
     while (true) {
-      System.out.println("===========\n New rates...\n===========");
+      // System.out.println("===========\n New rates...\n===========");
       updateAllRates();
       printRates();
       if (!inequalityHolds()) {
         if (inequalityViolationsInARow >= 3) {
-          System.out.println("=========== TRIGGER SWITCH ===========");
+          LOG.info("Triggering switch...");
           long t = TimeUtils.getCurrentTimeInMicroseconds();
-          System.out.println("driftTimestamp = " + t);
+          LOG.info("driftTimestamp = {}", t);
           ControlEvent controlEvent = new ControlEvent(Optional.of(t), Optional.empty());
           // sendControlEvent(controlEvent, nodePort);
           sendControlEvent(controlEvent, coordinatorPort);
           // break;
         }
         inequalityViolationsInARow++;
-        System.out.println(
-            "Inequality does not hold. Violations in a row: " + inequalityViolationsInARow);
+        LOG.info("Inequality does not hold. Violations in a row: " + inequalityViolationsInARow);
       } else {
         inequalityViolationsInARow = 0;
       }
-      System.out.println("====================================");
+      // System.out.println("====================================");
       try {
         Thread.sleep(TimeUnit.SECONDS.toMillis(1)); // TODO: use timeSlide in real prog
       } catch (InterruptedException e) {
-        System.out.println("Monitoring thread interrupted");
-        e.printStackTrace();
+        LOG.error("Monitoring thread interrupted. Error: {}", e.getMessage());
       }
     }
   }

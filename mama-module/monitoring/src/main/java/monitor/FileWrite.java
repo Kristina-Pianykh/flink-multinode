@@ -63,7 +63,6 @@ public class FileWrite extends Thread {
       }
     }
     LOG.info("filePath: {} " + this.filePath);
-    LOG.info("filePath: {} " + this.filePath);
   }
 
   public void terminate() {
