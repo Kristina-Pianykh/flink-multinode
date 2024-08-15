@@ -247,16 +247,17 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Messag
         LOG.info("Received message: " + message);
 
         // check, if a client has sent his entire event stream..
-        if (message.contains("end-of-the-stream")) {
+        if (message == null || message.contains("end-of-the-stream")) {
           LOG.info("Reached the end of the stream for " + client_address);
+          if (message == null) {
+            // do nothing, let the client reconnect after a one-time buffer flush
+            // for regular event forwarding
+            LOG.warn("Stream terminated without end-of-the-stream marker.");
+            continue;
+          }
           input.close();
           socket.close();
           return;
-
-        } else if (message == null) {
-          LOG.warn("Stream terminated without end-of-the-stream marker.");
-          // do nothing, let the client reconnect after a one-time buffer flush
-          // for regular event forwarding
 
         } else if (message.startsWith("control")) {
           Optional<ControlEvent> controlEvent = ControlEvent.parse(message);

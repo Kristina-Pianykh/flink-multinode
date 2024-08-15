@@ -183,14 +183,13 @@ public class PatternFactory_generic {
       NodeConfig config,
       int windowFactor,
       final int num_subquery) {
-    // LOG.debug(
-    //     "Generating pattern for query {} subquery {} with first event type {} and second event
-    // type"
-    //         + " {}",
-    //     q.queryName,
-    //     num_subquery,
-    //     firstEventType,
-    //     secondEventType);
+    LOG.debug(
+        "Generating pattern for query {} subquery {} with first event type {} and second event type"
+            + " {}",
+        q.queryName,
+        num_subquery,
+        firstEventType,
+        secondEventType);
     final long TIME_WINDOW_SIZE_US = q.timeWindowSize * 1_000_000;
     List<List<String>> sequence_constraints = q.sequenceConstraints.get(num_subquery);
     List<String> idConstraints = q.idConstraints.get(num_subquery);
@@ -200,48 +199,84 @@ public class PatternFactory_generic {
         "pattern_q" + queryCounter + "_sq" + num_subquery + "_" + firstEventType;
     final String firstPatternName = patternBaseName + "_0";
     final String secondPatternName = patternBaseName + "_1";
-    // LOG.debug(
-    //     "patternBaseName: {}, firstPatternName: {}, secondPatternName: {}",
-    //     patternBaseName,
-    //     firstPatternName,
-    //     secondPatternName);
+    LOG.debug(
+        "patternBaseName: {}, firstPatternName: {}, secondPatternName: {}",
+        patternBaseName,
+        firstPatternName,
+        secondPatternName);
 
     Pattern<Event, Event> p =
         Pattern.<Event>begin(firstPatternName)
             .where(checkEventTypeFirst(firstEventType, firstPatternName)) // get first event type
-            .where(
-                new SimpleCondition<Event>() {
-                  @Override
-                  public boolean filter(Event e) {
-                    boolean isMultiSinkQuery =
-                        q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
-                    boolean isNonFallbackNode =
-                        config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
-                            && (config.rateMonitoringInputs.fallbackNode != config.nodeId);
-                    if (isMultiSinkQuery && isNonFallbackNode && !e.multiSinkQueryEnabled) {
-                      return false;
-                    }
-                    return true;
-                  }
-                })
+            // .where(
+            //     new SimpleCondition<Event>() {
+            //       @Override
+            //       public boolean filter(Event e) {
+            //         boolean isMultiSinkQuery =
+            //             q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
+            //         boolean isNonFallbackNode =
+            //             config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
+            //                 && (config.rateMonitoringInputs.fallbackNode != config.nodeId);
+            //         if (isMultiSinkQuery && isNonFallbackNode && !e.multiSinkQueryEnabled) {
+            //           LOG.debug(
+            //               "multisink query disabled on event: {}; filter condition; q: {},"
+            //                   + " isMultiSinkQuery: {}, isNonFallbackNode: {},"
+            //                   + " e.multiSinkQueryEnabled: {}",
+            //               e.toString(),
+            //               q.queryName,
+            //               isMultiSinkQuery,
+            //               isNonFallbackNode,
+            //               e.multiSinkQueryEnabled);
+            //           return false;
+            //         }
+            //         LOG.debug(
+            //             "multisink query enabled on event: {}; filter condition; q: {},"
+            //                 + " isMultiSinkQuery: {}, isNonFallbackNode: {},"
+            //                 + " e.multiSinkQueryEnabled: {}",
+            //             e.toString(),
+            //             q.queryName,
+            //             isMultiSinkQuery,
+            //             isNonFallbackNode,
+            //             e.multiSinkQueryEnabled);
+            //         return true;
+            //       }
+            //     })
             .followedByAny(secondPatternName)
             .where(
                 checkEventTypeSecond(secondEventType, secondPatternName)) // get second event type
-            .where(
-                new SimpleCondition<Event>() {
-                  @Override
-                  public boolean filter(Event e) {
-                    boolean isMultiSinkQuery =
-                        q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
-                    boolean isNonFallbackNode =
-                        config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
-                            && (config.rateMonitoringInputs.fallbackNode != config.nodeId);
-                    if (isMultiSinkQuery && isNonFallbackNode && !e.multiSinkQueryEnabled) {
-                      return false;
-                    }
-                    return true;
-                  }
-                })
+            // .where(
+            //     new SimpleCondition<Event>() {
+            //       @Override
+            //       public boolean filter(Event e) {
+            //         boolean isMultiSinkQuery =
+            //             q.queryName.equals(config.rateMonitoringInputs.multiSinkQuery);
+            //         boolean isNonFallbackNode =
+            //             config.rateMonitoringInputs.multiSinkNodes.contains(config.nodeId)
+            //                 && (config.rateMonitoringInputs.fallbackNode != config.nodeId);
+            //         if (isMultiSinkQuery && isNonFallbackNode && !e.multiSinkQueryEnabled) {
+            //           LOG.debug(
+            //               "multisink query disabled on event: {}; filter condition; q: {},"
+            //                   + " isMultiSinkQuery: {}, isNonFallbackNode: {},"
+            //                   + " e.multiSinkQueryEnabled: {}",
+            //               e.toString(),
+            //               q.queryName,
+            //               isMultiSinkQuery,
+            //               isNonFallbackNode,
+            //               e.multiSinkQueryEnabled);
+            //           return false;
+            //         }
+            //         LOG.debug(
+            //             "multisink query enabled on event: {}; filter condition; q: {},"
+            //                 + " isMultiSinkQuery: {}, isNonFallbackNode: {},"
+            //                 + " e.multiSinkQueryEnabled: {}",
+            //             e.toString(),
+            //             q.queryName,
+            //             isMultiSinkQuery,
+            //             isNonFallbackNode,
+            //             e.multiSinkQueryEnabled);
+            //         return true;
+            //       }
+            //     })
             .where(
                 new IterativeCondition<Event>() { // Check timestamps, sequence and id constraints
                   long seed = 12345L;
@@ -264,13 +299,27 @@ public class PatternFactory_generic {
                               > TIME_WINDOW_SIZE_US
                           || Math.abs(
                                   new_event.getHighestTimestamp() - old_event.getLowestTimestamp())
-                              > TIME_WINDOW_SIZE_US) return false;
+                              > TIME_WINDOW_SIZE_US) {
+                        LOG.debug(
+                            "new_event {} too far apart from old_event: {}",
+                            new_event.toString(),
+                            old_event.toString());
+                        return false;
+                      }
 
                       // Check selectivity
-                      if (rand.nextDouble() > selectivity) return false;
+                      if (rand.nextDouble() > selectivity) {
+                        LOG.debug(
+                            "Selectivity {} above random dice roll {} for event {}",
+                            selectivity,
+                            rand.nextDouble(),
+                            new_event.toString());
+                        return false;
+                      }
 
                       // Check id constraint
                       for (String idConstraint : idConstraints) {
+                        // LOG.debug("ID constraint: {}", idConstraint);
                         if (!old_event
                             .getEventIdOf(idConstraint)
                             .equals(new_event.getEventIdOf(idConstraint))) return false;
@@ -279,6 +328,7 @@ public class PatternFactory_generic {
                       // Check sequence constraint (first > last or first < last)
                       // No sequence constraints = AND
                       for (List<String> sequence_constraint : sequence_constraints) {
+                        // LOG.debug("Sequence constraint: {}", sequence_constraint);
                         String first_eventtype = sequence_constraint.get(0);
                         String second_eventtype = sequence_constraint.get(1);
 
@@ -287,6 +337,19 @@ public class PatternFactory_generic {
                             && new_event.getTimestampOf(second_eventtype) != null
                             && old_event.getTimestampOf(first_eventtype)
                                 >= new_event.getTimestampOf(second_eventtype)) {
+
+                          LOG.debug(
+                              "Sequence constraint failed for new_event{} and old_event {};"
+                                  + " old_event.getTimestampOf(first_eventtype): {},"
+                                  + " new_event.getTimestampOf(second_eventtype): {},"
+                                  + " old_event.getTimestampOf(first_eventtype): {},"
+                                  + " new_event.getTimestampOf(second_eventtype): {}",
+                              new_event.toString(),
+                              old_event.toString(),
+                              old_event.getTimestampOf(first_eventtype),
+                              new_event.getTimestampOf(second_eventtype),
+                              old_event.getTimestampOf(first_eventtype),
+                              new_event.getTimestampOf(second_eventtype));
                           return false;
                         }
 
@@ -294,6 +357,19 @@ public class PatternFactory_generic {
                             && old_event.getTimestampOf(second_eventtype) != null
                             && new_event.getTimestampOf(first_eventtype)
                                 >= old_event.getTimestampOf(second_eventtype)) {
+
+                          LOG.debug(
+                              "Sequence constraint failed for new_event: {} and old_event: {};"
+                                  + " old_event.getTimestampOf(first_eventtype): {},"
+                                  + " new_event.getTimestampOf(second_eventtype): {},"
+                                  + " new_event.getTimestampOf(first_eventtype): {},"
+                                  + " old_event.getTimestampOf(second_eventtype): {}",
+                              new_event.toString(),
+                              old_event.toString(),
+                              old_event.getTimestampOf(first_eventtype),
+                              new_event.getTimestampOf(second_eventtype),
+                              new_event.getTimestampOf(first_eventtype),
+                              old_event.getTimestampOf(second_eventtype));
                           return false;
                         }
                       }
@@ -370,15 +446,23 @@ public class PatternFactory_generic {
           latest_eventID = simp_eventID;
           timestamp_counter.incrementAndGet();
         }
-        // LOG.debug(
-        //     "checkEventTypeSecond() for eventType: {}; e.getEventType: {}; patternName: {},"
-        //         + " eventType.equals(e.getEventType()): {}",
-        //     eventType,
-        //     e.getEventType(),
-        //     patternName,
-        //     eventType.equals(e.getEventType()));
+        LOG.debug(
+            "checkEventTypeFirst() for event: {}; eventType: {}; e.getEventType: {}; patternName:"
+                + " {}, eventType.equals(e.getEventType()): {}",
+            e.toString(),
+            eventType,
+            e.getEventType(),
+            patternName,
+            eventType.equals(e.getEventType()));
 
-        return eventType.equals(e.getEventType());
+        if (eventType.equals(e.getEventType())) {
+          LOG.debug("checkEventTypeFirst() returning true");
+          return true;
+        } else {
+          LOG.debug("checkEventTypeFirst() returning false");
+          return false;
+        }
+        // return eventType.equals(e.getEventType());
       }
     };
   }
@@ -395,15 +479,24 @@ public class PatternFactory_generic {
           latest_eventID = simp_eventID;
           timestamp_counter.incrementAndGet();
         }
-        // LOG.debug(
-        //     "checkEventTypeSecond() for eventType: {}; e.getEventType: {}; patternName: {},"
-        //         + " eventType.equals(e.getEventType()): {}",
-        //     eventType,
-        //     e.getEventType(),
-        //     patternName,
-        //     eventType.equals(e.getEventType()));
+        LOG.debug(
+            "checkEventTypeSecond() for event: {}; eventType: {}; e.getEventType: {}; patternName:"
+                + " {}, eventType.equals(e.getEventType()): {}",
+            e.toString(),
+            eventType,
+            e.getEventType(),
+            patternName,
+            eventType.equals(e.getEventType()));
 
-        return eventType.equals(e.getEventType());
+        if (eventType.equals(e.getEventType())) {
+          LOG.debug("checkEventTypeSecond() returning true");
+          return true;
+        } else {
+          LOG.debug("checkEventTypeSecond() returning false");
+          return false;
+        }
+
+        // return eventType.equals(e.getEventType());
       }
     };
   }
