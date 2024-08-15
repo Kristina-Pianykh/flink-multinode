@@ -1,4 +1,3 @@
-// package monitor;
 package com.huberlin.monitor;
 
 import com.huberlin.event.Event;
@@ -11,8 +10,11 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.cli.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Monitor {
+  private static final Logger LOG = LoggerFactory.getLogger(Monitor.class);
 
   private static CommandLine parse_cmdline_args(String[] args) {
     final Options cmdline_opts = new Options();
@@ -42,6 +44,7 @@ public class Monitor {
     int coordinatorPort = 6668;
     Integer monitorPort = null;
     Integer nodePort = null;
+    final int socketTimeOutMillis = 660000;
 
     CommandLine cmd = parse_cmdline_args(args);
     String addressBookPath =
@@ -51,14 +54,13 @@ public class Monitor {
     String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs");
     RateMonitoringInputs rateMonitoringInputs =
         RateMonitoringInputs.parseRateMonitoringInputs(rateMonitoringInputsPath);
-    System.out.println(rateMonitoringInputs.toString());
+    LOG.info("rateMonitoringInputs: {}", rateMonitoringInputs.toString());
 
     String nodeId = cmd.getOptionValue("node");
     boolean isMultiSinkNode =
         rateMonitoringInputs.multiSinkNodes.contains(Integer.parseInt(nodeId));
     if (!isMultiSinkNode) {
-      System.out.println("Node " + nodeId + " is not a multi-sink node.");
-      System.out.println("Exiting...");
+      LOG.warn("Node {} is not a multi-sink node. Exiting...", nodeId);
       System.exit(0);
     }
 
@@ -66,10 +68,9 @@ public class Monitor {
       nodePort = JsonParser.getNodePort(addressBookPath, nodeId);
       assert nodePort != null : "Failed to parse node port from address book.";
       monitorPort = nodePort + 20;
-      System.out.println("Node port: " + monitorPort);
-      System.out.println("Monitor port: " + monitorPort);
+      LOG.info("Node port: {}; monitor port: {}", nodePort, monitorPort);
     } catch (IOException e) {
-      e.printStackTrace();
+      LOG.error("Failed to parse node port from address book: {}", e.getMessage());
       System.exit(-1);
     }
 
@@ -84,40 +85,47 @@ public class Monitor {
                 coordinatorPort))
         .start();
 
+    Thread fileWriter = new Thread(new FileWrite(Integer.parseInt(nodeId), totalRates));
+    fileWriter.start();
+
     try (ServerSocket serverSocket = new ServerSocket(monitorPort)) {
-      System.out.println(
-          "Server started. Listening for connections on port " + monitorPort + "...");
+      LOG.info("Server started. Listening for connections on port " + monitorPort + "...");
       while (true) {
         Socket socket = serverSocket.accept();
-        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates).start();
-        System.out.println("Main function, buffer size: " + buffer.size());
+        socket.setSoTimeout(socketTimeOutMillis); // in milies; 11 min
+        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates, fileWriter)
+            .start();
+        LOG.info("Main function, buffer size: " + buffer.size());
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      LOG.error("Server exception: {}", e.getMessage());
       System.exit(-1);
     }
   }
 
   private static class ClientHandler extends Thread {
+    private static final Logger LOG = LoggerFactory.getLogger(ClientHandler.class);
     String nodeId;
     private Socket socket;
     private BlockingEventBuffer buffer;
     private RateMonitoringInputs rateMonitoringInputs;
     private HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
-
-    // private HashMap<String, ArrayBlockingQueue<Double>> totalRates;
+    private final String filePath = "totalRates" + this.nodeId + ".csv";
+    public Thread fileWriter;
 
     public ClientHandler(
         String nodeId,
         Socket socket,
         BlockingEventBuffer buffer,
         RateMonitoringInputs rateMonitoringInputs,
-        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates) {
+        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates,
+        Thread fileWriter) {
       this.nodeId = nodeId;
       this.socket = socket;
       this.buffer = buffer;
       this.rateMonitoringInputs = rateMonitoringInputs;
       this.totalRates = totalRates;
+      this.fileWriter = fileWriter;
     }
 
     @Override
@@ -125,28 +133,24 @@ public class Monitor {
       try {
         BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-        System.out.println(
-            "Socket for the connection: "
-                + socket.getInetAddress()
-                + ":"
-                + socket.getPort()
-                + " is open.");
+        LOG.info(
+            "Socket for the connection: {}:{} is open.", socket.getInetAddress(), socket.getPort());
         Event event;
         while (true) {
           try {
             String message = input.readLine();
             if (message == null) {
-              System.out.println("Client has closed the connection.");
+              LOG.warn("Client has closed the connection.");
               break;
             }
-            System.out.println("Received message: " + message);
+            LOG.info("Received message: {}", message);
             event = Event.parse(message);
-            System.out.println(message.contains("|"));
+            // System.out.println(message.contains("|"));
             if (message.contains("|")) {
               event = Event.parse(message);
               LocalTime currTime = LocalTime.now();
               DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss:SSSSSS");
-              System.out.println(event + " was received at: " + currTime.format(formatter));
+              LOG.info("{} was received at: {}", event, currTime.format(formatter));
 
               boolean insertSucess = false;
               boolean relevantEvent =
@@ -154,7 +158,7 @@ public class Monitor {
                       || rateMonitoringInputs.partitioningInput.equals(event.getEventType())
                       || rateMonitoringInputs.multiSinkQuery.equals(event.getEventType()));
               if (!relevantEvent) {
-                System.out.println("Ignoring irrelevant event: " + event);
+                LOG.warn("Ignoring irrelevant event: {}", event);
                 continue;
               }
               while (!insertSucess) {
@@ -165,71 +169,52 @@ public class Monitor {
                 }
 
                 if (!insertSucess) {
-                  System.out.println("Failed to insert event into the buffer.");
-                  System.out.println("Resizing the buffer...");
+                  LOG.warn("Failed to insert event into the buffer. Resizing the buffer...");
                   buffer.resize();
                 } else {
-                  System.out.println("Successfully inserted event into the buffer.");
-                  System.out.println("Buffer size: " + buffer.size());
-                  System.out.println(buffer.toString());
+                  LOG.info(
+                      "Successfully inserted event into the buffer. Buffer size: {}. Buffer: {}",
+                      buffer.size(),
+                      buffer.toString());
                   insertSucess = true;
                 }
               }
 
             } else {
-              System.out.println("Ignoring message: " + message);
+              LOG.warn("Ignoring message: {}", message);
             }
 
+          } catch (SocketTimeoutException ex) {
+            LOG.warn("Socket timed out!");
+            LOG.info("Stopping the file writer thread...");
+            ((FileWrite) fileWriter).terminate();
+            try {
+              fileWriter.join();
+
+            } catch (InterruptedException e) {
+              LOG.error(
+                  "Joining of fileWriter thread has been interrupted. Error: {}", e.getMessage());
+            }
+            LOG.info("File writer thread stopped.");
+            socket.close();
+            System.exit(1);
+
           } catch (EOFException e) {
-            System.out.println("Client has closed the connection.");
+            LOG.error("Client has closed the connection.");
+            // socket.close();
             break; // Exit the loop if EOFException is caught
           }
         }
 
       } catch (IOException e) {
-        e.printStackTrace();
+        LOG.error("Error: {}", e.getMessage());
       } finally {
         try {
           socket.close();
-          // dumb the data in totalRates to a file
-          String filePath = "totalRates" + this.nodeId + ".csv";
-          writeHashMapToCSV(totalRates, filePath);
         } catch (IOException e) {
           e.printStackTrace();
         }
       }
-    }
-  }
-
-  public static void writeHashMapToCSV(
-      HashMap<String, ArrayBlockingQueue<TimestampAndRate>> map, String filePath) {
-    try (PrintWriter writer = new PrintWriter(new File(filePath))) {
-      StringBuilder sb = new StringBuilder();
-
-      // Write the header
-      sb.append("EventType,Rate\n");
-
-      // Write the data
-      for (Map.Entry<String, ArrayBlockingQueue<TimestampAndRate>> entry : map.entrySet()) {
-        String eventType = entry.getKey();
-        ArrayBlockingQueue<TimestampAndRate> timestampsAndRates = entry.getValue();
-        for (TimestampAndRate timestampAndRate : timestampsAndRates) {
-          sb.append("\""); // Wrap the eventType in quotes (in case it contains a comma)
-          sb.append(eventType);
-          sb.append("\"");
-          sb.append(",");
-          sb.append(timestampAndRate.timestamp);
-          sb.append(",");
-          sb.append(timestampAndRate.rate);
-          sb.append("\n");
-        }
-      }
-
-      writer.write(sb.toString());
-      System.out.println("CSV file created: " + filePath);
-
-    } catch (FileNotFoundException e) {
-      System.out.println(e.getMessage());
     }
   }
 }
