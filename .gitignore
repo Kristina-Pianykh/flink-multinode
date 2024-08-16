@@ -53,3 +53,4 @@ java-cep/.idea/*
 **/*.log
 **/*.csv
 **/*.png
+**/dependency-reduced-pom.xml
