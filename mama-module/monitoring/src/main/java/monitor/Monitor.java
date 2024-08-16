@@ -233,7 +233,18 @@ public class Monitor {
 
     private void writeEventToCSV(String eventType, String timestamp, Long timestampLong) {
       try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(filePath, true)))) {
-        out.println(eventType + "," + timestamp + "," + timestampLong);
+        out.println(
+            "\""
+                + eventType
+                + "\""
+                + ","
+                + "\""
+                + timestamp
+                + "\""
+                + ","
+                + "\""
+                + timestampLong
+                + "\"");
         LOG.info("Wrote event to CSV: {}, {}", eventType, timestamp);
       } catch (IOException e) {
         LOG.error("Error writing to CSV file: {}", e.getMessage());
