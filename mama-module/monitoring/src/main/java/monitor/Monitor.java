@@ -34,6 +34,8 @@ public class Monitor {
             "monitoringinputs",
             true,
             "Path to the directory with the inputs for computing the inequality"));
+    cmdline_opts.addOption(
+        new Option("applyStrategy", false, "Flag whether to apply the adaptive strategy"));
     final CommandLineParser parser = new DefaultParser();
     try {
       return parser.parse(cmdline_opts, args);
@@ -52,12 +54,16 @@ public class Monitor {
     Integer monitorPort = null;
     Integer nodePort = null;
     final int socketTimeOutMillis = 660000;
+    boolean applyStrategy = false;
 
     CommandLine cmd = parse_cmdline_args(args);
     String addressBookPath =
         cmd.getOptionValue(
             "addressbook",
             "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json");
+    if (cmd.hasOption("applyStrategy")) applyStrategy = true;
+    LOG.info("Apply adaptive strategy: {}", applyStrategy);
+
     String rateMonitoringInputsPath = cmd.getOptionValue("monitoringinputs");
     RateMonitoringInputs rateMonitoringInputs =
         RateMonitoringInputs.parseRateMonitoringInputs(rateMonitoringInputsPath);
@@ -89,7 +95,8 @@ public class Monitor {
                 totalRates,
                 Integer.parseInt(nodeId),
                 nodePort,
-                coordinatorPort))
+                coordinatorPort,
+                applyStrategy))
         .start();
 
     // Thread fileWriter = new Thread(new FileWrite(Integer.parseInt(nodeId), totalRates));
