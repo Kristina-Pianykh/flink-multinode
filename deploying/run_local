@@ -15,50 +15,72 @@ wait_until_middle_of_minute() {
 }
 
 usage() {
-  echo "Usage: run [OPTIONS] INPUT_DIR N [RUN_DURATION]";
+  # echo "Usage: run [OPTIONS] INPUT_DIR TRACE_DIR N [RUN_DURATION]";
+  echo "Usage: run INPUT_DIR TRACE_DIR N [RUN_DURATION]";
   echo "Deploys configs and runs all nodes."
-  echo "INPUT_DIR: path to a folder with config_i.json and trace_i.json for each node i";
+  echo "INPUT_DIR: path to a folder with config_*.json and trace_*.json for each node";
+  echo "TRACE_DIR: path to a folder with trace_*.csv for each node";
   echo "N: number of nodes";
   echo "RUN_DURATION: sleep time, i.e. expected duration (default is 10m)";
   echo "";
-  echo "Options:";
-  echo "  -i: Flag that enables inflated rates";
+  # echo "Options:";
+  # echo "  -i: Flag that enables inflated rates";
 }
 
-# Process options
-while getopts ":i" opt; do
-  case $opt in
-    i)
-      INFLATED_RATES=1
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      usage
-      exit 1
-      ;;
-  esac
-done
-
-# Shift off the options and optional --
-shift $((OPTIND - 1))
-
-if (( $# < 2 )); then
+if (( $# < 3 )); then
   usage
   exit 1
-else
-  INPUT_DIR="$(realpath $1)"
-  N_NODES=$(($2))
-  RUN_DURATION_MIN=${3:-10}  # Use the third argument, or set default value
 fi;
 
-if (( INFLATED_RATES == 1 )); then
-  echo "Sending inflated rates"
-  TRACE_DIR="$INPUT_DIR/inflated_trace"
-else
-  echo "Sending regular rates"
-  TRACE_DIR="$INPUT_DIR/trace"
-fi;
-echo "Path to the trace dir: $TRACE_DIR"
+INPUT_DIR="$(realpath $1)"
+TRACE_DIR="$(realpath $2)"
+N_NODES=$(($3))
+RUN_DURATION_MIN=${4:-10}  # Use the third argument, or set default value
+
+echo "INPUT_DIR: $INPUT_DIR"
+echo "TRACE_DIR: $TRACE_DIR"
+echo "N_NODES: $N_NODES"
+echo "RUN_DURATION_MIN: $RUN_DURATION_MIN"
+
+# # Process options
+# while getopts ":i" opt; do
+#   case $opt in
+#     i)
+#       INFLATED_RATES=1
+#       ;;
+#     \?)
+#       echo "Invalid option: -$OPTARG" >&2
+#       usage
+#       exit 1
+#       ;;
+#   esac
+# done
+#
+# # Shift off the options and optional --
+# shift $((OPTIND - 1))
+#
+# if (( $# < 2 )); then
+#   usage
+#   exit 1
+# else
+#   INPUT_DIR="$(realpath $1)"
+#   TRACE_DIR="$(realpath $2)"
+#   N_NODES=$(($3))
+#   RUN_DURATION_MIN=${4:-10}  # Use the third argument, or set default value
+# fi;
+
+# if (( INFLATED_RATES == 1 )); then
+#   echo "Sending inflated rates"
+#   TRACE_DIR="$INPUT_DIR/inflated_trace_C"
+# else
+#   echo "Sending regular rates"
+#   TRACE_DIR="$INPUT_DIR/trace"
+# fi;
+#
+# if [ ! -d "$TRACE_DIR" ]; then
+#   echo "Path to traces dir not found: $TRACE_DIR"
+#   exit 1
+# fi;
 
 #build the jar
 # cd $JAVA_BASE_DIR && mvn -pl java-cep clean package && cd $DEPLOYING_DIR
