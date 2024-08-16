@@ -46,11 +46,11 @@ setup() {
   for ((i=0; i<N_NODES; i++)); do
     echo "Node $i"
     total=$(rg -S -e "Received event: simple.*" ${LOG_DIR}/$i.log | awk -F  '|' '{print $2}' | wc -l)
-    echo "Total: $total"
+    echo "  Total: $total"
 
     # distinct number
     distinct=$(rg -S -e "Received event: simple.*" ${LOG_DIR}/$i.log | awk -F  '|' '{print $2}' | awk '!seen[$0]++'| wc -l)
-    echo "Distinct: $distinct"
+    echo "  Distinct: $distinct"
 
     assert_equal "$total" "$distinct"
   done;
@@ -61,11 +61,11 @@ setup() {
     echo "Node $i"
     # number of simple events sent to the monitor
     total=$(rg -S -e "Received event: complex.*" ${LOG_DIR}/$i.log | awk -F  '|' '{print $2}'| wc -l)
-    echo "Total: $total"
+    echo "  Total: $total"
 
     # distinct number
     distinct=$(rg -S -e "Received event: complex.*" ${LOG_DIR}/$i.log | awk -F  '|' '{print $2}' | awk '!seen[$0]++'| wc -l)
-    echo "Distinct: $distinct"
+    echo "  Distinct: $distinct"
 
     assert_equal "$total" "$distinct"
   done;
@@ -84,19 +84,51 @@ setup() {
     complex=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*sendTo\(\)\: forwarding message.*complex.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
 
     echo "Node $i"
-    echo "Sent simple events: $simple"
-    echo "Sent complex events: $complex"
-    echo "Total: $((simple+complex))"
+    echo "  Sent:"
+    echo "    simple events: $simple"
+    echo "    complex events: $complex"
+    echo "    total: $((simple+complex))"
 
     simple_total=$((simple_total+simple))
     complex_total=$((complex_total+complex))
   done;
 
   echo ""
-  echo "Simple events sent total: $simple_total"
-  echo "Complex events sent total: $complex_total"
-  echo "Sent absolute total: $((simple_total+complex_total))"
+  echo "  Sent total:"
+  echo "    Simple events: $simple_total"
+  echo "    Complex events: $complex_total"
+  echo "    Absolute total: $((simple_total+complex_total))"
 }
+
+@test 'events processed total()' {
+  simple_total=0
+  complex_total=0
+  total=0
+
+  for ((i=0; i<N_NODES; i++)); do
+    simple_events_per_node=0
+    complex_events_per_node=0
+
+    simple=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*SendToMonitor: simple.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
+    complex=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*SendToMonitor: complex.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
+
+    echo "Node $i"
+    echo "  Processed:"
+    echo "    simple events: $simple"
+    echo "    complex events: $complex"
+    echo "    total: $((simple+complex))"
+
+    simple_total=$((simple_total+simple))
+    complex_total=$((complex_total+complex))
+  done;
+
+  echo ""
+  echo "  Processed total:"
+  echo "    Simple events: $simple_total"
+  echo "    Complex events : $complex_total"
+  echo "    Absolute total: $((simple_total+complex_total))"
+}
+
 
 @test 'complex multisink events created ()' {
   for i in "${NON_FALLBACK_NODES[@]}"; do
@@ -111,24 +143,24 @@ setup() {
   # assert [ "$count" -gt 0 ]
 }
 
-@test 'matches for multi-sink q on non-fallback nodes after switch()' {
-  # NON_FALLBACK_NODES=(0 4)
-  for i in "${NON_FALLBACK_NODES[@]}"; do
-    echo "Node $i"
-    line=$(rg -n -S -e "FLUSHING" ${LOG_DIR}/$i.log | awk -F  ':' '{print $1}')
-    if [ -z "$line" ]; then
-      echo "No flushing on $i"
-      continue
-    fi
-
-    next_line=$((line+1))
-    count=$(tail -n +$next_line ${LOG_DIR}/$i.log | rg -S -e 'Complex event created:.*SEQ\(., ., .\).*' | wc -l | tr -d '[:space:]')
-    echo "Complex events created on non-fallback node $i after disabling the multi-sink query: $count"
-    # run bash -c "tail -n +$next_line ${LOG_DIR}/$i.log | rg -S -e '.*complex.*SEQ\(., ., .\).*' | wc -l"
-    # assert_equal "$count" "0"
-    # refute_output
-  done;
-}
+# @test 'matches for multi-sink q on non-fallback nodes after switch()' {
+#   # NON_FALLBACK_NODES=(0 4)
+#   for i in "${NON_FALLBACK_NODES[@]}"; do
+#     echo "Node $i"
+#     line=$(rg -n -S -e "FLUSHING" ${LOG_DIR}/$i.log | awk -F  ':' '{print $1}')
+#     if [ -z "$line" ]; then
+#       echo "No flushing on $i"
+#       continue
+#     fi
+#
+#     next_line=$((line+1))
+#     count=$(tail -n +$next_line ${LOG_DIR}/$i.log | rg -S -e 'Complex event created:.*SEQ\(., ., .\).*' | wc -l | tr -d '[:space:]')
+#     echo "Complex events created on non-fallback node $i after disabling the multi-sink query: $count"
+#     # run bash -c "tail -n +$next_line ${LOG_DIR}/$i.log | rg -S -e '.*complex.*SEQ\(., ., .\).*' | wc -l"
+#     # assert_equal "$count" "0"
+#     # refute_output
+#   done;
+# }
 
 @test 'flushed events receieved by fallback node()' {
   # NON_FALLBACK_NODES=(0 4)
