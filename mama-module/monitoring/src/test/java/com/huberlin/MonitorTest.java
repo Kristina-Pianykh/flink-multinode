@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
+import org.apache.commons.cli.*;
 import org.junit.jupiter.api.Test;
 
 class GeneralTest {
@@ -43,4 +44,33 @@ class GeneralTest {
       e.printStackTrace();
     }
   }
+
+  private static CommandLine parse_cmdline_args(String[] args) {
+    final Options cmdline_opts = new Options();
+    final HelpFormatter formatter = new HelpFormatter();
+    // cmdline_opts.addOption(new Option("node", true, "Node ID on which the monitor is running"));
+    cmdline_opts.addOption(new Option("applyStrategy", false, "test"));
+    final CommandLineParser parser = new DefaultParser();
+    try {
+      return parser.parse(cmdline_opts, args);
+    } catch (ParseException e) {
+      System.out.println(e.getMessage());
+      formatter.printHelp("java -jar cep-node.jar", cmdline_opts);
+      System.exit(1);
+    }
+    return null;
+  }
+
+  // @Test
+  // void cliOptionTest() {
+  //   // String[] args = new String[] {"-node", "1"};
+  //   CommandLine cmd = parse_cmdline_args(args);
+  //   // System.out.println("node: " + cmd.getOptionValue("node"));
+  //
+  //   if (cmd.hasOption("applyStrategy")) {
+  //     System.out.println("applyStrategy set");
+  //   } else {
+  //     System.out.println("applyStrategy: null");
+  //   }
+  // }
 }

@@ -113,6 +113,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.3.1</version> <!-- Use the latest version available -->
           <configuration>
+            <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/> <!-- Enable fork mode https://github.com/awslabs/amazon-kinesis-video-streams-producer-sdk-java/blob/master/pom.xml -->
               <includes>
                   <include>**/*Test.java</include>
               </includes>

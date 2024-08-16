@@ -29,6 +29,7 @@ public class MonitoringData implements Runnable {
   int nodeId;
   int nodePort;
   int coordinatorPort;
+  boolean applyStrategy;
 
   public MonitoringData(
       BlockingEventBuffer buffer,
@@ -36,7 +37,8 @@ public class MonitoringData implements Runnable {
       HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates,
       int nodeId,
       int nodePort,
-      int coordinatorPort) {
+      int coordinatorPort,
+      boolean applyStrategy) {
     this.totalRates = totalRates;
     this.cutoffTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeWindow) - 1;
     this.buffer = buffer;
@@ -66,6 +68,7 @@ public class MonitoringData implements Runnable {
     this.nodeId = nodeId;
     this.nodePort = nodePort;
     this.coordinatorPort = coordinatorPort;
+    this.applyStrategy = applyStrategy;
   }
 
   public long getCurrentTimeInSeconds() {
@@ -241,7 +244,7 @@ public class MonitoringData implements Runnable {
           LOG.info("driftTimestamp = {}", t);
           ControlEvent controlEvent = new ControlEvent(Optional.of(t), Optional.empty());
           // sendControlEvent(controlEvent, nodePort);
-          sendControlEvent(controlEvent, coordinatorPort);
+          if (this.applyStrategy) sendControlEvent(controlEvent, coordinatorPort);
           // break;
         }
         inequalityViolationsInARow++;
