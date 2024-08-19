@@ -3,15 +3,33 @@
 setup() {
   bats_load_library bats-assert
   N_NODES=5
-  LOG_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/SEQ_ABC/plans
-  FALLBACK_NODE=0
-  NON_FALLBACK_NODES=(2)
+  FALLBACK_NODE=2
+  NON_FALLBACK_NODES=(1 3)
+  INFLATED_RATES=1
+  TOPOLOGY=MULTINODE
+  APPLY_STRATEGY=1
+  TRACE_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/${TOPOLOGY}/plans/trace_inflated_${INFLATED_RATES}
+  LOG_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/${TOPOLOGY}/plans/output_strategy_${APPLY_STRATEGY}
 }
 
 @test "check if the log path exists" {
-  run ls "$LOG_DIR"
-  echo $LOG_DIR
-  [ "$status" -eq 0 ]
+  if [ ! -d "$LOG_DIR" ]; then
+    echo "Log directory $LOG_DIR does not exist"
+    exit 1
+  fi
+  # run ls "$LOG_DIR"
+  # run echo $LOG_DIR
+  # [ "$status" -eq 0 ]
+}
+
+@test "check if the trace path exists" {
+  if [ ! -d "$TRACE_DIR" ]; then
+    echo "Log directory $TRACE_DIR does not exist"
+    exit 1
+  fi
+  # run ls "$TRACE_DIR"
+  # run echo $TRACE_DIR
+  # [ "$status" -eq 0 ]
 }
 
 @test "assert non-fallback nodes are set" {
@@ -71,34 +89,29 @@ setup() {
   done;
 }
 
-@test 'events sent total()' {
-  simple_total=0
-  complex_total=0
-  total=0
 
-  for ((i=0; i<N_NODES; i++)); do
-    simple_events_per_node=0
-    complex_events_per_node=0
+# @test 'check received local events()' {
+#   check_local_events() {
+#     local i=$1
+#     fail_cnt=0
+#     echo "Node $i"
+#     fail_cnt=$(awk -F ',' '{print $3}' $TRACE_DIR/trace_$i.csv | grep -Fv -f "${LOG_DIR}/$i.log" | wc -l | tr -d '[:space:]')
+#     total=$(cat $TRACE_DIR/trace_$i.csv | wc -l | tr -d '[:space:]')
+#     echo "  Local events failed to arrive to $i: $fail_cnt/$total"
+#   }
+#   export -f check_local_events
+#   export TRACE_DIR LOG_DIR
+#   parallel -j "$(nproc)" --tagstring "Node {#}" check_local_events ::: $(seq 0 $((N_NODES - 1)))
+#
+#   # for ((i=0; i<N_NODES; i++)); do
+#   #   fail_cnt=0
+#   #   echo "Node $i"
+#   #   fail_cnt=$(awk -F ',' '{print $3}' $TRACE_DIR/trace_$i.csv | grep -Fv -f "${LOG_DIR}/$i.log" | wc -l | tr -d '[:space:]')
+#   #   total=$(cat $TRACE_DIR/trace_$i.csv | wc -l | tr -d '[:space:]')
+#   #   echo "  Local events failed to arrive to $i: $fail_cnt/$total"
+#   # done;
+# }
 
-    simple=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*sendTo\(\)\: forwarding message.*simple.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
-    complex=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*sendTo\(\)\: forwarding message.*complex.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
-
-    echo "Node $i"
-    echo "  Sent:"
-    echo "    simple events: $simple"
-    echo "    complex events: $complex"
-    echo "    total: $((simple+complex))"
-
-    simple_total=$((simple_total+simple))
-    complex_total=$((complex_total+complex))
-  done;
-
-  echo ""
-  echo "  Sent total:"
-  echo "    Simple events: $simple_total"
-  echo "    Complex events: $complex_total"
-  echo "    Absolute total: $((simple_total+complex_total))"
-}
 
 @test 'events processed total()' {
   simple_total=0
@@ -180,7 +193,8 @@ setup() {
       total_cnt=$((total_cnt+1))
 
       id=$(echo $event | awk '{print $3}')
-      echo $id | xargs -I {} rg "{}" ${LOG_DIR}/${FALLBACK_NODE}.log > /dev/null
+      rg -q $id ${LOG_DIR}/${FALLBACK_NODE}.log
+      # echo $id | xargs -I {} rg "{}" ${LOG_DIR}/${FALLBACK_NODE}.log > /dev/null
 
       # assert_success
       if [ $? -ne 0 ]; then
@@ -197,4 +211,33 @@ setup() {
 
 
   IFS=$OLDIFS
+}
+
+@test 'events sent total()' {
+  simple_total=0
+  complex_total=0
+  total=0
+
+  for ((i=0; i<N_NODES; i++)); do
+    simple_events_per_node=0
+    complex_events_per_node=0
+
+    simple=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*sendTo\(\)\: forwarding message.*simple.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
+    complex=$(rg -S -e ".*com\.huberlin\.javacep\.communication\.TCPEventSender.*sendTo\(\)\: forwarding message.*complex.*" ${LOG_DIR}/$i.log | wc -l | tr -d '[:space:]')
+
+    echo "Node $i"
+    echo "  Sent:"
+    echo "    simple events: $simple"
+    echo "    complex events: $complex"
+    echo "    total: $((simple+complex))"
+
+    simple_total=$((simple_total+simple))
+    complex_total=$((complex_total+complex))
+  done;
+
+  echo ""
+  echo "  Sent total:"
+  echo "    Simple events: $simple_total"
+  echo "    Complex events: $complex_total"
+  echo "    Absolute total: $((simple_total+complex_total))"
 }
