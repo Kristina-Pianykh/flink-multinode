@@ -300,20 +300,20 @@ public class PatternFactory_generic {
                           || Math.abs(
                                   new_event.getHighestTimestamp() - old_event.getLowestTimestamp())
                               > TIME_WINDOW_SIZE_US) {
-                        LOG.debug(
-                            "new_event {} too far apart from old_event: {}",
-                            new_event.toString(),
-                            old_event.toString());
+                        // LOG.debug(
+                        //     "new_event {} too far apart from old_event: {}",
+                        //     new_event.toString(),
+                        //     old_event.toString());
                         return false;
                       }
 
                       // Check selectivity
                       if (rand.nextDouble() > selectivity) {
-                        LOG.debug(
-                            "Selectivity {} above random dice roll {} for event {}",
-                            selectivity,
-                            rand.nextDouble(),
-                            new_event.toString());
+                        // LOG.debug(
+                        //     "Selectivity {} above random dice roll {} for event {}",
+                        //     selectivity,
+                        //     rand.nextDouble(),
+                        //     new_event.toString());
                         return false;
                       }
 
@@ -338,18 +338,18 @@ public class PatternFactory_generic {
                             && old_event.getTimestampOf(first_eventtype)
                                 >= new_event.getTimestampOf(second_eventtype)) {
 
-                          LOG.debug(
-                              "Sequence constraint failed for new_event{} and old_event {};"
-                                  + " old_event.getTimestampOf(first_eventtype): {},"
-                                  + " new_event.getTimestampOf(second_eventtype): {},"
-                                  + " old_event.getTimestampOf(first_eventtype): {},"
-                                  + " new_event.getTimestampOf(second_eventtype): {}",
-                              new_event.toString(),
-                              old_event.toString(),
-                              old_event.getTimestampOf(first_eventtype),
-                              new_event.getTimestampOf(second_eventtype),
-                              old_event.getTimestampOf(first_eventtype),
-                              new_event.getTimestampOf(second_eventtype));
+                          // LOG.debug(
+                          //     "Sequence constraint failed for new_event{} and old_event {};"
+                          //         + " old_event.getTimestampOf(first_eventtype): {},"
+                          //         + " new_event.getTimestampOf(second_eventtype): {},"
+                          //         + " old_event.getTimestampOf(first_eventtype): {},"
+                          //         + " new_event.getTimestampOf(second_eventtype): {}",
+                          //     new_event.toString(),
+                          //     old_event.toString(),
+                          //     old_event.getTimestampOf(first_eventtype),
+                          //     new_event.getTimestampOf(second_eventtype),
+                          //     old_event.getTimestampOf(first_eventtype),
+                          //     new_event.getTimestampOf(second_eventtype));
                           return false;
                         }
 
@@ -358,18 +358,18 @@ public class PatternFactory_generic {
                             && new_event.getTimestampOf(first_eventtype)
                                 >= old_event.getTimestampOf(second_eventtype)) {
 
-                          LOG.debug(
-                              "Sequence constraint failed for new_event: {} and old_event: {};"
-                                  + " old_event.getTimestampOf(first_eventtype): {},"
-                                  + " new_event.getTimestampOf(second_eventtype): {},"
-                                  + " new_event.getTimestampOf(first_eventtype): {},"
-                                  + " old_event.getTimestampOf(second_eventtype): {}",
-                              new_event.toString(),
-                              old_event.toString(),
-                              old_event.getTimestampOf(first_eventtype),
-                              new_event.getTimestampOf(second_eventtype),
-                              new_event.getTimestampOf(first_eventtype),
-                              old_event.getTimestampOf(second_eventtype));
+                          // LOG.debug(
+                          //     "Sequence constraint failed for new_event: {} and old_event: {};"
+                          //         + " old_event.getTimestampOf(first_eventtype): {},"
+                          //         + " new_event.getTimestampOf(second_eventtype): {},"
+                          //         + " new_event.getTimestampOf(first_eventtype): {},"
+                          //         + " old_event.getTimestampOf(second_eventtype): {}",
+                          //     new_event.toString(),
+                          //     old_event.toString(),
+                          //     old_event.getTimestampOf(first_eventtype),
+                          //     new_event.getTimestampOf(second_eventtype),
+                          //     new_event.getTimestampOf(first_eventtype),
+                          //     old_event.getTimestampOf(second_eventtype));
                           return false;
                         }
                       }
@@ -446,20 +446,21 @@ public class PatternFactory_generic {
           latest_eventID = simp_eventID;
           timestamp_counter.incrementAndGet();
         }
-        LOG.debug(
-            "checkEventTypeFirst() for event: {}; eventType: {}; e.getEventType: {}; patternName:"
-                + " {}, eventType.equals(e.getEventType()): {}",
-            e.toString(),
-            eventType,
-            e.getEventType(),
-            patternName,
-            eventType.equals(e.getEventType()));
+        // LOG.debug(
+        //     "checkEventTypeFirst() for event: {}; eventType: {}; e.getEventType: {};
+        // patternName:"
+        //         + " {}, eventType.equals(e.getEventType()): {}",
+        //     e.toString(),
+        //     eventType,
+        //     e.getEventType(),
+        //     patternName,
+        //     eventType.equals(e.getEventType()));
 
         if (eventType.equals(e.getEventType())) {
-          LOG.debug("checkEventTypeFirst() returning true");
+          // LOG.debug("checkEventTypeFirst() returning true");
           return true;
         } else {
-          LOG.debug("checkEventTypeFirst() returning false");
+          // LOG.debug("checkEventTypeFirst() returning false");
           return false;
         }
         // return eventType.equals(e.getEventType());
@@ -479,20 +480,21 @@ public class PatternFactory_generic {
           latest_eventID = simp_eventID;
           timestamp_counter.incrementAndGet();
         }
-        LOG.debug(
-            "checkEventTypeSecond() for event: {}; eventType: {}; e.getEventType: {}; patternName:"
-                + " {}, eventType.equals(e.getEventType()): {}",
-            e.toString(),
-            eventType,
-            e.getEventType(),
-            patternName,
-            eventType.equals(e.getEventType()));
+        // LOG.debug(
+        //     "checkEventTypeSecond() for event: {}; eventType: {}; e.getEventType: {};
+        // patternName:"
+        //         + " {}, eventType.equals(e.getEventType()): {}",
+        //     e.toString(),
+        //     eventType,
+        //     e.getEventType(),
+        //     patternName,
+        //     eventType.equals(e.getEventType()));
 
         if (eventType.equals(e.getEventType())) {
-          LOG.debug("checkEventTypeSecond() returning true");
+          // LOG.debug("checkEventTypeSecond() returning true");
           return true;
         } else {
-          LOG.debug("checkEventTypeSecond() returning false");
+          // LOG.debug("checkEventTypeSecond() returning false");
           return false;
         }
 
