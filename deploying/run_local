@@ -6,7 +6,6 @@ JAVA_PROJ_DIR="$BASE_DIR/mama-module/java-cep"
 PY_DIR="$BASE_DIR/python"
 DEPLOYING_DIR="$BASE_DIR/deploying"
 MONITORING_DIR="$BASE_DIR/mama-module/monitoring"
-INFLATED_RATES=0
 
 wait_until_middle_of_minute() {
   seconds_on_clock=$(date "+%-S")
@@ -15,84 +14,55 @@ wait_until_middle_of_minute() {
 }
 
 usage() {
-  # echo "Usage: run [OPTIONS] INPUT_DIR TRACE_DIR N [RUN_DURATION]";
-  echo "Usage: run INPUT_DIR TRACE_DIR N [RUN_DURATION]";
+  echo "Usage: run INPUT_DIR OUTPUT_DIR TRACE_DIR N [RUN_DURATION]";
   echo "Deploys configs and runs all nodes."
   echo "INPUT_DIR: path to a folder with config_*.json and trace_*.json for each node";
   echo "TRACE_DIR: path to a folder with trace_*.csv for each node";
   echo "N: number of nodes";
   echo "RUN_DURATION: sleep time, i.e. expected duration (default is 10m)";
   echo "";
-  # echo "Options:";
-  # echo "  -i: Flag that enables inflated rates";
 }
 
-if (( $# < 3 )); then
+if (( $# < 4 )); then
   usage
   exit 1
 fi;
 
 INPUT_DIR="$(realpath $1)"
-TRACE_DIR="$(realpath $2)"
-N_NODES=$(($3))
-RUN_DURATION_MIN=${4:-10}  # Use the third argument, or set default value
+output_dir="$2"
+if [ ! -d "$2" ]; then
+  echo "OUTPUT_DIR does not exist. Creating..."
+  mkdir -p "$2"
+fi;
+OUTPUT_DIR=$2
+TRACE_DIR=$(realpath $3)
+N_NODES=$(($4))
+RUN_DURATION_MIN=${5:-10}
 
 echo "INPUT_DIR: $INPUT_DIR"
+echo "OUTPUT_DIR: $OUTPUT_DIR"
 echo "TRACE_DIR: $TRACE_DIR"
 echo "N_NODES: $N_NODES"
 echo "RUN_DURATION_MIN: $RUN_DURATION_MIN"
 
-# # Process options
-# while getopts ":i" opt; do
-#   case $opt in
-#     i)
-#       INFLATED_RATES=1
-#       ;;
-#     \?)
-#       echo "Invalid option: -$OPTARG" >&2
-#       usage
-#       exit 1
-#       ;;
-#   esac
-# done
-#
-# # Shift off the options and optional --
-# shift $((OPTIND - 1))
-#
-# if (( $# < 2 )); then
-#   usage
-#   exit 1
-# else
-#   INPUT_DIR="$(realpath $1)"
-#   TRACE_DIR="$(realpath $2)"
-#   N_NODES=$(($3))
-#   RUN_DURATION_MIN=${4:-10}  # Use the third argument, or set default value
-# fi;
+if [[ -z "$INPUT_DIR" || -z "$OUTPUT_DIR" || -z "$TRACE_DIR" || -z "$N_NODES" ]]; then
+  usage
+  exit 1
+fi;
 
-# if (( INFLATED_RATES == 1 )); then
-#   echo "Sending inflated rates"
-#   TRACE_DIR="$INPUT_DIR/inflated_trace_C"
-# else
-#   echo "Sending regular rates"
-#   TRACE_DIR="$INPUT_DIR/trace"
-# fi;
-#
-# if [ ! -d "$TRACE_DIR" ]; then
-#   echo "Path to traces dir not found: $TRACE_DIR"
-#   exit 1
-# fi;
-
-#build the jar
-# cd $JAVA_BASE_DIR && mvn -pl java-cep clean package && cd $DEPLOYING_DIR
+if [ -d "$OUTPUT_DIR" ]; then
+  rm $OUTPUT_DIR/*.log
+  rm $OUTPUT_DIR/*.err
+else
+  mkdir -p "$OUTPUT_DIR"
+  if [ $? -ne 0 ]; then
+    echo "Failed to create output directory"
+    exit 1
+  fi;
+fi;
 
 #start all nodes
 JAR="$JAVA_PROJ_DIR/target/java-cep-1.0-SNAPSHOT.jar"
-
-RESULTS_DIR=$INPUT_DIR
-ps aux | grep '[j]ava-cep' | awk '{print $2}' | xargs kill -9
-
-# start monitors
-# $MONITORING_DIR/start_monitoring.sh
 
 for ((i=0; i<N_NODES; i++)); do
   echo "starting $i"
@@ -106,32 +76,22 @@ for ((i=0; i<N_NODES; i++)); do
             -globalconfig "$DEPLOYING_DIR/address_book_localhost.json" \
             -monitoringinputs "$INPUT_DIR/inequality_inputs.json" \
             -updatedrules "$INPUT_DIR/updated_forwared_rules.json" \
-             | tee "$INPUT_DIR/$i.log" 2> >(tee "$INPUT_DIR/$i.err" >&2) &
+             | tee "$OUTPUT_DIR/$i.log" 2> >(tee "$OUTPUT_DIR/$i.err" >&2) &
              # >"$INPUT_DIR/$i.log" 2>"$INPUT_DIR/$i.err" &
 done;
-
-#check that all processes are running
 
 echo "waiting 10 sec for all nodes to start up..."
 sleep 10
 wait_until_middle_of_minute
 
 #start input srcs
-rm $RESULTS_DIR/py.log
-rm $RESULTS_DIR/py.err
 for ((i=0; i<N_NODES; i++)); do
   echo starting inputs on "$i"
-  # TODO: read the ports of the nodes from the config file
-  nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$TRACE_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >>"$RESULTS_DIR/py.log" 2>>"$RESULTS_DIR/py.err" &
-  # nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$INPUT_DIR/trace_$i.csv" -p $((5500+i)) >"$RESULTS_DIR/py.log" 2>"$RESULTS_DIR/py.err" &
+  nohup python3 "$PY_DIR/send_eventstream.py" "$i" -f "$TRACE_DIR/trace_$i.csv" --address-book "$DEPLOYING_DIR/address_book_localhost.json" >>"$OUTPUT_DIR/py.log" 2>>"$OUTPUT_DIR/py.err" &
 done
+
 sleep  $((60 * RUN_DURATION_MIN))
-mkdir "$RESULTS_DIR/mem_usage"
-mkdir "$RESULTS_DIR/throughput"
-# mv mem* "$RESULTS_DIR/mem_usage"
-# mv through* "$RESULTS_DIR/throughput"
 
 #wait for process termination
-ps aux | grep '[j]ava' | grep -v java-language-server | awk '{print $2}' | xargs kill -9
-#clean up ugly empty log files
-#find "$RESULTS_DIR" -size 0 -name '*.err' -exec rm {} ';'
+ps aux | grep '[j]ava' | grep -v java-language-server | awk '{print $2}' | xargs kill -9 &&\
+	ps aux | grep python | grep -v nvim | awk '{print $2}' | xargs kill -9
