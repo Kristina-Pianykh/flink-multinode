@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 public class Coordinator {
   private static final Logger LOG = LoggerFactory.getLogger(Coordinator.class);
-  private static final int NODE_NUM = 5;
   private static final int PORT = 6668;
   private static final int COORDINATOR_ID = 42069;
   private static final int RETRY_INTERVAL = 3000;
@@ -30,6 +29,7 @@ public class Coordinator {
             + " --add-opens=java.base/java.util=ALL-UNNAMED \\\n"
             + " -jar $JAR \\\n";
     cmdlineOpts.addOption(new Option("addressBook", true, "Path to the address book"));
+    cmdlineOpts.addOption(new Option("n", true, "Number of nodes"));
     final CommandLineParser parser = new DefaultParser();
     try {
       return parser.parse(cmdlineOpts, args);
@@ -67,10 +67,10 @@ public class Coordinator {
   }
 
   public static HashMap<Integer, Tuple2<Socket, PrintWriter>> initSocketWriterMap(
-      HashMap<Integer, TCPAddressString> addressBook) {
+      HashMap<Integer, TCPAddressString> addressBook, int nNodes) {
     HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap = new HashMap<>();
 
-    while (socketWriterMap.size() < NODE_NUM) {
+    while (socketWriterMap.size() < nNodes) {
       for (Map.Entry<Integer, TCPAddressString> entry : addressBook.entrySet()) {
         int dstNodeId = entry.getKey();
         if (socketWriterMap.containsKey(dstNodeId)) continue;
@@ -108,8 +108,11 @@ public class Coordinator {
   }
 
   public static void main(String[] args) {
+    Integer nNodes = null;
+
     CommandLine cmd = parseArgs(args);
     String addressBookPath = cmd.getOptionValue("addressBook");
+    String nNodesStr = cmd.getOptionValue("n");
 
     try {
       assert addressBookPath != null;
@@ -117,11 +120,25 @@ public class Coordinator {
       LOG.error("Address book path is not provided.");
       System.exit(1);
     }
-    HashMap<Integer, TCPAddressString> addressBook = parseAddressBookTCP(addressBookPath, NODE_NUM);
+    try {
+      assert nNodesStr != null;
+    } catch (AssertionError e) {
+      LOG.error("Number of nodes is not provided.");
+      System.exit(1);
+    }
+
+    try {
+      nNodes = Integer.parseInt(nNodesStr);
+    } catch (NumberFormatException e) {
+      LOG.error("Failed to parse number of nodes arg {} with error: {}", nNodesStr, e.getMessage());
+      System.exit(1);
+    }
+
+    HashMap<Integer, TCPAddressString> addressBook = parseAddressBookTCP(addressBookPath, nNodes);
     LOG.info("Parsed address book successfully: {}", addressBook);
 
     HashMap<Integer, Tuple2<Socket, PrintWriter>> socketWriterMap =
-        initSocketWriterMap(addressBook);
+        initSocketWriterMap(addressBook, nNodes);
 
     try (ServerSocket serverSocket = new ServerSocket(PORT)) {
       LOG.info("Coordinator started. Listening for connections on port " + PORT + "...");
