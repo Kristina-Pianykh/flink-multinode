@@ -253,7 +253,7 @@ public class OldSourceFunction extends RichSourceFunction<Tuple2<Integer, Messag
             // do nothing, let the client reconnect after a one-time buffer flush
             // for regular event forwarding
             LOG.warn("Stream terminated without end-of-the-stream marker.");
-            continue;
+            // continue;
           }
           input.close();
           socket.close();
