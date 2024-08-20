@@ -3,11 +3,13 @@
 setup() {
   bats_load_library bats-assert
   N_NODES=5
-  FALLBACK_NODE=2
-  NON_FALLBACK_NODES=(1 3)
   INFLATED_RATES=1
-  TOPOLOGY=MULTINODE
-  APPLY_STRATEGY=1
+
+  FALLBACK_NODE=4
+  NON_FALLBACK_NODES=(2 3)
+  APPLY_STRATEGY=0
+  TOPOLOGY=SEQ_ABC_5
+
   TRACE_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/${TOPOLOGY}/plans/trace_inflated_${INFLATED_RATES}
   LOG_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/${TOPOLOGY}/plans/output_strategy_${APPLY_STRATEGY}
 }
@@ -17,6 +19,7 @@ setup() {
     echo "Log directory $LOG_DIR does not exist"
     exit 1
   fi
+  echo $LOG_DIR
   # run ls "$LOG_DIR"
   # run echo $LOG_DIR
   # [ "$status" -eq 0 ]
@@ -27,6 +30,7 @@ setup() {
     echo "Log directory $TRACE_DIR does not exist"
     exit 1
   fi
+  echo $TRACE_DIR
   # run ls "$TRACE_DIR"
   # run echo $TRACE_DIR
   # [ "$status" -eq 0 ]
@@ -88,29 +92,6 @@ setup() {
     assert_equal "$total" "$distinct"
   done;
 }
-
-
-# @test 'check received local events()' {
-#   check_local_events() {
-#     local i=$1
-#     fail_cnt=0
-#     echo "Node $i"
-#     fail_cnt=$(awk -F ',' '{print $3}' $TRACE_DIR/trace_$i.csv | grep -Fv -f "${LOG_DIR}/$i.log" | wc -l | tr -d '[:space:]')
-#     total=$(cat $TRACE_DIR/trace_$i.csv | wc -l | tr -d '[:space:]')
-#     echo "  Local events failed to arrive to $i: $fail_cnt/$total"
-#   }
-#   export -f check_local_events
-#   export TRACE_DIR LOG_DIR
-#   parallel -j "$(nproc)" --tagstring "Node {#}" check_local_events ::: $(seq 0 $((N_NODES - 1)))
-#
-#   # for ((i=0; i<N_NODES; i++)); do
-#   #   fail_cnt=0
-#   #   echo "Node $i"
-#   #   fail_cnt=$(awk -F ',' '{print $3}' $TRACE_DIR/trace_$i.csv | grep -Fv -f "${LOG_DIR}/$i.log" | wc -l | tr -d '[:space:]')
-#   #   total=$(cat $TRACE_DIR/trace_$i.csv | wc -l | tr -d '[:space:]')
-#   #   echo "  Local events failed to arrive to $i: $fail_cnt/$total"
-#   # done;
-# }
 
 
 @test 'events processed total()' {
@@ -212,6 +193,17 @@ setup() {
 
   IFS=$OLDIFS
 }
+
+
+@test 'failed to arrive local events()' {
+  for ((i=0; i<N_NODES; i++)); do
+    echo "Node $i"
+    total=$(cat ${TRACE_DIR}/trace_$i.csv | wc -l | tr -d '[:space:]')
+    fail_cnt=$(python tests/check_ids.py --trace ${TRACE_DIR}/trace_$i.csv --log ${LOG_DIR}/$i.log | tr -d '[:space:]')
+    echo "  Local events failed to arrive to $i: $fail_cnt/$total"
+  done;
+}
+
 
 @test 'events sent total()' {
   simple_total=0
