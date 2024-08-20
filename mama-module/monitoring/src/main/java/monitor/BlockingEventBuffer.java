@@ -3,8 +3,11 @@ package com.huberlin.monitor;
 
 import com.huberlin.event.Event;
 import java.util.concurrent.ArrayBlockingQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BlockingEventBuffer extends ArrayBlockingQueue<Event> {
+  private static final Logger LOG = LoggerFactory.getLogger(BlockingEventBuffer.class);
 
   public BlockingEventBuffer(int capacity) {
     super(capacity);
@@ -26,13 +29,20 @@ public class BlockingEventBuffer extends ArrayBlockingQueue<Event> {
     // System.out.println("Buffer size before dropping old events: " + this.size());
     // this.removeIf(e -> e.getTimestamp() <= cutoffTimestamp);
     for (Event e : this) {
-      System.out.println(
+      LOG.info(
           "e.getTimestamp() ("
               + e.getTimestamp()
               + ") <= cutoffTimestamp ("
               + cutoffTimestamp
               + ") = "
               + (e.getTimestamp() <= cutoffTimestamp));
+      // System.out.println(
+      //     "e.getTimestamp() ("
+      //         + e.getTimestamp()
+      //         + ") <= cutoffTimestamp ("
+      //         + cutoffTimestamp
+      //         + ") = "
+      //         + (e.getTimestamp() <= cutoffTimestamp));
       if (e.getTimestamp() <= cutoffTimestamp) {
         this.remove(e);
       }

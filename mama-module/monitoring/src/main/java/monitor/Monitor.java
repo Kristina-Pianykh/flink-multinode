@@ -40,7 +40,7 @@ public class Monitor {
     try {
       return parser.parse(cmdline_opts, args);
     } catch (ParseException e) {
-      System.out.println(e.getMessage());
+      LOG.error("Failed to parse command line arguments: {}", e.getMessage());
       formatter.printHelp("java -jar cep-node.jar", cmdline_opts);
       System.exit(1);
     }

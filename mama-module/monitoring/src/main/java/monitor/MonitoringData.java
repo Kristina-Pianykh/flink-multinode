@@ -30,6 +30,7 @@ public class MonitoringData implements Runnable {
   int nodePort;
   int coordinatorPort;
   boolean applyStrategy;
+  boolean changeDetected = false;
 
   public MonitoringData(
       BlockingEventBuffer buffer,
@@ -244,7 +245,10 @@ public class MonitoringData implements Runnable {
           LOG.info("driftTimestamp = {}", t);
           ControlEvent controlEvent = new ControlEvent(Optional.of(t), Optional.empty());
           // sendControlEvent(controlEvent, nodePort);
-          if (this.applyStrategy) sendControlEvent(controlEvent, coordinatorPort);
+          if (this.applyStrategy && !this.changeDetected) {
+            this.changeDetected = true;
+            sendControlEvent(controlEvent, coordinatorPort);
+          }
           // break;
         }
         inequalityViolationsInARow++;
