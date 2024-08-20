@@ -36,6 +36,7 @@ public class Monitor {
             "Path to the directory with the inputs for computing the inequality"));
     cmdline_opts.addOption(
         new Option("applyStrategy", false, "Flag whether to apply the adaptive strategy"));
+    cmdline_opts.addOption(new Option("outputdir", true, "Path to the output directory"));
     final CommandLineParser parser = new DefaultParser();
     try {
       return parser.parse(cmdline_opts, args);
@@ -61,6 +62,20 @@ public class Monitor {
         cmd.getOptionValue(
             "addressbook",
             "/Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json");
+    String outputDir = cmd.getOptionValue("outputdir");
+
+    try {
+      assert outputDir != null;
+    } catch (AssertionError e) {
+      LOG.error("Output directory is not set. Exiting...");
+      System.exit(-1);
+    }
+    if (!(new File(outputDir).isDirectory())) {
+      LOG.error("Output directory does not exist. Exiting...");
+      System.exit(-1);
+    }
+    if (!outputDir.endsWith("/")) outputDir = outputDir + "/";
+
     if (cmd.hasOption("applyStrategy")) applyStrategy = true;
     LOG.info("Apply adaptive strategy: {}", applyStrategy);
 
@@ -107,7 +122,8 @@ public class Monitor {
       while (true) {
         Socket socket = serverSocket.accept();
         socket.setSoTimeout(socketTimeOutMillis); // in milies; 11 min
-        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates).start();
+        new ClientHandler(nodeId, socket, buffer, rateMonitoringInputs, totalRates, outputDir)
+            .start();
         LOG.info("Main function, buffer size: " + buffer.size());
       }
     } catch (IOException e) {
@@ -123,20 +139,21 @@ public class Monitor {
     private BlockingEventBuffer buffer;
     private RateMonitoringInputs rateMonitoringInputs;
     private HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates;
-    private final String filePath;
+    private final File filePath;
 
     public ClientHandler(
         String nodeId,
         Socket socket,
         BlockingEventBuffer buffer,
         RateMonitoringInputs rateMonitoringInputs,
-        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates) {
+        HashMap<String, ArrayBlockingQueue<TimestampAndRate>> totalRates,
+        String outputDir) {
       this.nodeId = nodeId;
       this.socket = socket;
       this.buffer = buffer;
       this.rateMonitoringInputs = rateMonitoringInputs;
       this.totalRates = totalRates;
-      this.filePath = "totalRates" + this.nodeId + ".csv";
+      this.filePath = new File(outputDir + "totalRates" + this.nodeId + ".csv");
 
       // Initialize the CSV file with headers
       try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(filePath, true)))) {
