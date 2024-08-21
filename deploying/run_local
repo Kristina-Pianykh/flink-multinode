@@ -51,8 +51,9 @@ if [[ -z "$INPUT_DIR" || -z "$OUTPUT_DIR" || -z "$TRACE_DIR" || -z "$N_NODES" ]]
 fi;
 
 if [ -d "$OUTPUT_DIR" ]; then
-  rm $OUTPUT_DIR/*.log
-  rm $OUTPUT_DIR/*.err
+  echo "Output directory already exists."
+  # rm $OUTPUT_DIR/*.log
+  # rm $OUTPUT_DIR/*.err
 else
   mkdir -p "$OUTPUT_DIR"
   if [ $? -ne 0 ]; then
@@ -94,4 +95,4 @@ sleep  $((60 * RUN_DURATION_MIN))
 
 #wait for process termination
 ps aux | grep '[j]ava' | grep -v java-language-server | awk '{print $2}' | xargs kill -9 &&\
-	ps aux | grep python | grep -v nvim | awk '{print $2}' | xargs kill -9
+	ps aux | grep python | grep -v nvim | grep -v poetry | awk '{print $2}' | xargs kill -9
