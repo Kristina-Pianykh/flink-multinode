@@ -52,14 +52,15 @@ def parse_args():
 def parse_events_arg(
     events: str,
 ) -> list[str]:  # events are passed as a cli arg in the form "A,B,C"
-    return [event.strip() for event in events.split(",")]
+    return [event.strip() for event in events.split(";")]
 
 
 def extract_event_type(line: str) -> str:
     res = [el.strip() for el in line.split("|")][3]
     # print(res)
-    assert len(res) == 1
-    assert res.isalpha()
+    # assert len(res) == 1
+    # assert all([not el.isdigit() for el in res])
+    # assert res.isalpha()
     return res
 
 
@@ -168,14 +169,14 @@ def plot(df0, df1, output_dir: str):
     # Save the plot if a save path is provided
 
     plt.savefig(f"{output_dir}/transmission_rates.png")
-    # plt.show()
+    plt.show()
 
 
 def main(dir0: str, dir1: str, output_dir: str, events: Optional[list[str]]):
     res0: list[tuple[int, str, datetime]] = parse_logs(dir0)
     res1: list[tuple[int, str, datetime]] = parse_logs(dir1)
-    assert all(len(el[1]) == 1 for el in res0)
-    assert all(len(el[1]) == 1 for el in res1)
+    # assert all(len(el[1]) == 1 for el in res0)
+    # assert all(len(el[1]) == 1 for el in res1)
 
     # Convert parsed results into a DataFrame for easier manipulation
     df0 = pd.DataFrame(res0, columns=["node_id", "event_type", "timestamp"])

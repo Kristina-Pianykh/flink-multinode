@@ -43,14 +43,14 @@ def parse_args():
 def parse_events_arg(
     events: str,
 ) -> list[str]:  # events are passed as a cli arg in the form "A,B,C"
-    return [event.strip() for event in events.split(",")]
+    return [event.strip() for event in events.split(";")]
 
 
 def extract_event_type(line: str) -> str:
     res = [el.strip() for el in line.split("|")][3]
     # print(res)
-    assert len(res) == 1
-    assert res.isalpha()
+    # assert len(res) == 1
+    # assert res.isalpha()
     return res
 
 
@@ -152,13 +152,13 @@ def plot(df):
 
 def main(dir: str, events: Optional[list[str]]):
     # res: list[tuple[int, str, datetime]] = parse_logs(dir)
-    id = 4
+    id = 3
     res: list[tuple[int, str, datetime]] = parse_log(f"{dir}/{id}.log", id)
     if not res:
         print(f"Node {id} doesn't emit any data")
         os._exit(0)
-    assert all(el[0] == id for el in res)
-    assert all(len(el[1]) == 1 for el in res)
+    # assert all(el[0] == id for el in res)
+    # assert all(len(el[1]) == 1 for el in res)
 
     # Convert parsed results into a DataFrame for easier manipulation
     df = pd.DataFrame(res, columns=["node_id", "event_type", "timestamp"])
