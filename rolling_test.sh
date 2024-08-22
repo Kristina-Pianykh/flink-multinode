@@ -31,13 +31,14 @@ run() {
       --add-opens java.base/java.lang=ALL-UNNAMED \
       -jar coordinator/target/coordinator-0.1.jar \
       -addressBook /Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying/address_book_localhost.json \
-      -n $i
+      -n $i &
 
   # start flink job
   cd /Users/krispian/Uni/bachelorarbeit/sigmod24-flink/deploying
   ./run_local $INPUT_DIR $OUTPUT_DIR_STRATEGY "${INPUT_DIR}/trace_inflated_1" $i
   sleep 10
 
+  # plot transmission rates
   cd /Users/krispian/Uni/bachelorarbeit/sigmod24-flink/pyplt
   poetry run python plot_all_sent.py \
       --dir0 $OUTPUT_DIR_NO_STRATEGY \
