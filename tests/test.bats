@@ -2,14 +2,16 @@
 
 setup() {
   bats_load_library bats-assert
-  N_NODES=5
   INFLATED_RATES=1
 
-  FALLBACK_NODE=4
-  NON_FALLBACK_NODES=(2 3)
-  APPLY_STRATEGY=0
-  TOPOLOGY=SEQ_ABC_5
+  N_NODES=5
+  FALLBACK_NODE=1
+  NON_FALLBACK_NODES=(0 2)
+  APPLY_STRATEGY=1
+  OP=SEQ
 
+  # TOPOLOGY=${OP}_ABC_${N_NODES}
+  TOPOLOGY=SEQ_ABC_complex_5
   TRACE_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/${TOPOLOGY}/plans/trace_inflated_${INFLATED_RATES}
   LOG_DIR=/Users/krispian/Uni/bachelorarbeit/topologies/${TOPOLOGY}/plans/output_strategy_${APPLY_STRATEGY}
 }
@@ -199,7 +201,7 @@ setup() {
   for ((i=0; i<N_NODES; i++)); do
     echo "Node $i"
     total=$(cat ${TRACE_DIR}/trace_$i.csv | wc -l | tr -d '[:space:]')
-    fail_cnt=$(python tests/check_ids.py --trace ${TRACE_DIR}/trace_$i.csv --log ${LOG_DIR}/$i.log | tr -d '[:space:]')
+    fail_cnt=$(python /Users/krispian/Uni/bachelorarbeit/sigmod24-flink/tests/check_ids.py --trace ${TRACE_DIR}/trace_$i.csv --log ${LOG_DIR}/$i.log | tr -d '[:space:]')
     echo "  Local events failed to arrive to $i: $fail_cnt/$total"
   done;
 }
