@@ -12,7 +12,7 @@ from parse_logs import (
 import matplotlib.ticker as ticker
 
 
-def plot(df0, df1, output_dir: str):
+def plot(df0, df1, query: str, node_n: str, output_dir: str):
     interval = 60
 
     def prepare_data(df):
@@ -37,8 +37,14 @@ def plot(df0, df1, output_dir: str):
     df0 = prepare_data(df0)
     df1 = prepare_data(df1)
 
+    # Calculate the maximum y-axis value across both dataframes
+    max_y = max(df0.max().max(), df1.max().max())
+
     # Create a figure with two subplots side by side
     fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+
+    # Add a title to the entire plot
+    fig.suptitle(f"Node num: {node_n}, Query: {query}", fontsize=16)
 
     def format_func(x, min_timestamp):
         # Calculate the elapsed time in minutes from the start_time
@@ -54,6 +60,7 @@ def plot(df0, df1, output_dir: str):
     axes[0].set_xlabel("Minutes Elapsed")
     axes[0].xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
     axes[0].xaxis.set_minor_locator(mdates.SecondLocator(interval=interval))
+    axes[0].set_ylim(0, max_y + 10)  # Set y-axis limits with a little extra space
 
     axes[0].xaxis.set_major_formatter(
         ticker.FuncFormatter(lambda x, _: f"{format_func(x, df0.index.min())}")
@@ -70,6 +77,7 @@ def plot(df0, df1, output_dir: str):
     axes[1].set_xlabel("Minutes Elapsed")
     axes[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
     axes[1].xaxis.set_minor_locator(mdates.SecondLocator(interval=interval))
+    axes[1].set_ylim(0, max_y + 10)  # Set y-axis limits with a little extra space
 
     axes[1].xaxis.set_major_formatter(
         ticker.FuncFormatter(lambda x, _: f"{format_func(x, df1.index.min())}")
@@ -82,7 +90,14 @@ def plot(df0, df1, output_dir: str):
     plt.show()
 
 
-def main(dir0: str, dir1: str, output_dir: str, events: Optional[list[str]]):
+def main(
+    dir0: str,
+    dir1: str,
+    output_dir: str,
+    query: str,
+    node_n: str,
+    events: Optional[list[str]],
+):
     res0: list[tuple[int, str, datetime]] = parse_logs(dir0)
     res1: list[tuple[int, str, datetime]] = parse_logs(dir1)
     res_no_node_id0 = [el[1:] for el in res0]
@@ -96,10 +111,15 @@ def main(dir0: str, dir1: str, output_dir: str, events: Optional[list[str]]):
         df0 = df0[df0["event_type"].isin(events)]
         df1 = df1[df1["event_type"].isin(events)]
 
-    plot(df0, df1, output_dir)
+    plot(df0, df1, query, node_n, output_dir)
 
 
 if __name__ == "__main__":
     args = parse_args()
     event_types = parse_events_arg(args.events)
-    main(args.dir0, args.dir1, args.output_dir, event_types)
+    assert args.node_n
+    assert args.node_n.isdigit()
+
+    assert args.query
+
+    main(args.dir0, args.dir1, args.output_dir, args.query, args.node_n, event_types)

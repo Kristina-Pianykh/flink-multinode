@@ -20,6 +20,8 @@ def parse_args():
     )
     parser.add_argument("--output_dir", type=str, help="Output dir for saving the plot")
     parser.add_argument("--events", type=str, help="Event types to plot")
+    parser.add_argument("--node_n", type=str, help="Number of nodes in the network")
+    parser.add_argument("--query", type=str, help="Query")
     args = parser.parse_args()
 
     assert args.dir0
