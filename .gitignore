@@ -54,3 +54,5 @@ java-cep/.idea/*
 **/*.csv
 **/*.png
 **/dependency-reduced-pom.xml
+
+**/__pycache__/
