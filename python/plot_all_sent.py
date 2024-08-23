@@ -169,7 +169,7 @@ def plot(df0, df1, output_dir: str):
     # Save the plot if a save path is provided
 
     plt.savefig(f"{output_dir}/transmission_rates.png")
-    plt.show()
+    # plt.show()
 
 
 def main(dir0: str, dir1: str, output_dir: str, events: Optional[list[str]]):

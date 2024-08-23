@@ -39,7 +39,7 @@ run() {
   sleep 10
 
   # plot transmission rates
-  cd /Users/krispian/Uni/bachelorarbeit/sigmod24-flink/pyplt
+  cd /Users/krispian/Uni/bachelorarbeit/sigmod24-flink/python
   poetry run python plot_all_sent.py \
       --dir0 $OUTPUT_DIR_NO_STRATEGY \
       --dir1 $OUTPUT_DIR_STRATEGY \
