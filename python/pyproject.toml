@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "py-plt"
+name = "pyplt"
 version = "0.1.0"
 description = ""
 authors = ["Kristina Pianykh <kristinavrnrus@gmail.com>"]
