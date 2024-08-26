@@ -52,7 +52,7 @@ deplaying/example_inputs/multiquery/*
 java-cep/.idea/*
 **/*.log
 **/*.csv
-**/*.png
+# **/*.png
 **/dependency-reduced-pom.xml
 
 **/__pycache__/
