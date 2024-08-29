@@ -82,7 +82,7 @@ def plot(df0, df1, output_dir: str, query: str, node_n: str):
         rect=[0, 0, 1, 0.95]
     )  # Adjust layout to make space for the suptitle
     plt.savefig(f"{output_dir}/transmission_rates.png")
-    plt.show()
+    # plt.show()
 
 
 def main(

@@ -93,7 +93,7 @@ def plot(dfs: dict[int, pd.DataFrame], output_dir: str, interval: int = 60):
 
     plt.tight_layout()
     plt.savefig(f"{output_dir}/transmission_rates_per_event_per_node.png")
-    plt.show()
+    # plt.show()
 
 
 def main(dir: str, output_dir: str, events: Optional[list[str]]):

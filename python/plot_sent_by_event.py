@@ -87,7 +87,7 @@ def plot(df0, df1, query: str, node_n: str, output_dir: str):
 
     plt.tight_layout()
     plt.savefig(f"{output_dir}/transmission_rates_per_event.png")
-    plt.show()
+    # plt.show()
 
 
 def main(

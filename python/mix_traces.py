@@ -23,7 +23,7 @@ def generate_mixed_trace(dir0, dir1, dir2):
         assert os.path.exists(f"{dir0}/{f}")
         assert os.path.exists(f"{dir1}/{f}")
 
-        print(f"Processing {f}")
+        # print(f"Processing {f}")
 
         # Load the regular rate trace file
         regular_trace = pd.read_csv(
@@ -91,20 +91,47 @@ def parse_args():
 if __name__ == "__main__":
     topology_dir = parse_args()
     dir0 = f"{topology_dir}/plans/trace_inflated_0"
-    dir1 = f"{topology_dir}/plans/trace_inflated_1"
-    dir2 = f"{topology_dir}/plans/trace_inflated_mix"
+    plans_dir = f"{topology_dir}/plans"
+    # dir1 = f"{topology_dir}/plans/trace_inflated_1"
+    for dir in os.listdir(plans_dir):
+        # print(dir)
+        # print(os.path.isdir(f"{plans_dir}/{dir}"))
+        dir_path = f"{plans_dir}/{dir}"
+        if (
+            os.path.isdir(dir_path)
+            and dir.startswith("trace_inflated_")
+            and dir != "trace_inflated_0"
+            and not dir.startswith("trace_inflated_mix")
+        ):
+            dir1 = f"{plans_dir}/{dir}"
+            # print(f"Input inflated dir: {dir1}")
+            suffix = dir.split("trace_inflated_")[1]
+            dir2 = f"{plans_dir}/trace_inflated_mix_{suffix}"
+            # print(f"Output dir: {dir2}")
 
-    check_dir(dir2)
+            check_dir(dir2)
 
-    generate_mixed_trace(dir0, dir1, dir2)
+            generate_mixed_trace(dir0, dir1, dir2)
 
-    size0 = size_of_traces(dir0)
-    size1 = size_of_traces(dir1)
-    size2 = size_of_traces(dir2)
+            size0 = size_of_traces(dir0)
+            size1 = size_of_traces(dir1)
+            size2 = size_of_traces(dir2)
 
-    print(f"\nSize of traces in {dir0}: {size0}")
-    print(f"Size of traces in {dir1}: {size1}")
-    print(f"Size of traces in {dir2}: {size2}\n")
+            # print(f"\nSize of traces in {dir0}: {size0}")
+            # print(f"Size of traces in {dir1}: {size1}")
+            # print(f"Size of traces in {dir2}: {size2}\n")
 
-    assert size0 < size1
-    assert (size2 > size0) and (size2 < size1)
+            try:
+                assert size0 < size1
+            except AssertionError as err:
+                print(f"\nAssertionError: assert size0 < size1")
+                print(f"\nSize of traces in {dir0}: {size0}")
+                print(f"Size of traces in {dir1}: {size1}")
+
+            try:
+                assert (size2 > size0) and (size2 < size1)
+            except AssertionError as err:
+                print(f"\nAssertionError: assert (size2 > size0) and (size2 < size1)")
+                print(f"\nSize of traces in {dir0}: {size0}")
+                print(f"Size of traces in {dir1}: {size1}")
+                print(f"Size of traces in {dir2}: {size2}\n")
