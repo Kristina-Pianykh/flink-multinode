@@ -103,6 +103,9 @@ if __name__ == "__main__":
             and dir != "trace_inflated_0"
             and not dir.startswith("trace_inflated_mix")
         ):
+            # if "6" not in dir:
+            #     continue
+
             dir1 = f"{plans_dir}/{dir}"
             # print(f"Input inflated dir: {dir1}")
             suffix = dir.split("trace_inflated_")[1]
