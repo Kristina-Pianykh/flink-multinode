@@ -1,12 +1,5 @@
 import argparse
 import os
-from typing import Optional
-from datetime import datetime
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.ticker import MaxNLocator
-import numpy as np
 from datetime import datetime
 
 
