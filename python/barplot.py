@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import argparse
 import random
 from datetime import datetime
 import os
@@ -44,11 +43,19 @@ def plot(
         )
     x1_values_normalized = fixies(x1_values_normalized)
 
+    # Determine the number of rows and columns for subplots
+    num_subplots = len(nodes)
+    num_rows = 2
+    num_cols = 3 if num_subplots > 3 else num_subplots
+
     # Set up the figure and subplots with the desired size
-    fig, axs = plt.subplots(1, 5, figsize=(15, 3), sharey=True)
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(15, 6), sharey=True)
+    axs = (
+        axs.flatten()
+    )  # Flatten the 2D array of axes to a 1D array for easier indexing
 
     # Iterate over the subplots
-    for i, ax in enumerate(axs):
+    for i, ax in enumerate(axs[:num_subplots]):
         n = nodes[i]
         x = np.arange(len(categories))  # Convert range to a NumPy array
 
@@ -70,11 +77,20 @@ def plot(
         ax.set_title(f"{n} Nodes")
         ax.set_xticks(x)
         ax.set_xticklabels(categories)
-        if i == 0:
+
+        # Set the y-axis label for the first plot in each row
+        if i % num_cols == 0:
             ax.set_ylabel("Normalized Costs")
+
+        # Set the x-axis label for all subplots
+        ax.set_xlabel("Inflation Factor")
 
         # Add subtle, background horizontal grid lines
         ax.grid(axis="y", color="gray", linestyle="--", linewidth=0.5, alpha=0.7)
+
+    # Hide any unused subplots
+    for j in range(num_subplots, len(axs)):
+        fig.delaxes(axs[j])
 
     # Adjust the layout to add space for the legend below the plots
     fig.tight_layout(rect=[0, 0.15, 1, 1])  # Leave space at the bottom for the legend
@@ -94,7 +110,19 @@ def plot(
 
 # Data for each subplot (replace with your actual data)
 nodes = ["complex_5", "5", "6", "7", "8", "9", "complex_8"]
-categories = ["0.2", "0.5", "0.7", "1.0", "1.3", "1.5", "2.0"]
+categories = [
+    "0.2",
+    "0.5",
+    "0.7",
+    "1.0",
+    "1.3",
+    "1.5",
+    "2.0",
+    "3.0",
+    "4.0",
+    "5.0",
+    "10.0",
+]
 
 
 query = "SEQ_ABC"
@@ -104,7 +132,7 @@ x0_values = {i: [] for i in nodes}
 x1_values = {i: [] for i in nodes}
 
 for i in os.listdir(dir):
-    if query in i:
+    if query in i and os.path.isdir(f"{dir}/{i}"):
         node_n = i.split("_", 2)[-1]
         print(f"number of nodes: {node_n}")
         # print(f"\n{dir}/{i}")
@@ -140,6 +168,12 @@ for i in os.listdir(dir):
             x1_values[node_n].append(len(events_total_1))
 
 x0_values = {k: v for k, v in x0_values.items() if v}
+print(x0_values)
 x1_values = {k: v for k, v in x1_values.items() if v}
+print(x1_values)
+for k in x0_values.keys():
+    print(k)
+    print(f"strategy0: {x0_values[k]}")
+    print(f"strategy1: {x1_values[k]}")
 
 plot(x0_values, x1_values, dir, categories, query)
