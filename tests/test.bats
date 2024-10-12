@@ -29,7 +29,7 @@ setup() {
 
 @test "check if the trace path exists" {
   if [ ! -d "$TRACE_DIR" ]; then
-    echo "Log directory $TRACE_DIR does not exist"
+    echo "Trace directory $TRACE_DIR does not exist"
     exit 1
   fi
   echo $TRACE_DIR
