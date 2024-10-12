@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import random
+from statistics import mean
 from datetime import datetime
 import os
 import numpy as np
@@ -51,7 +52,7 @@ def plot_aligned_line_chart(
             y1_values_filtered,
             savings_filtered_1,
             marker="o",
-            label=f"{n} Nodes (With Repair)",
+            label=f"{n} Nodes",
         )
 
     # Set axis labels
@@ -70,8 +71,15 @@ def plot_aligned_line_chart(
     plt.tight_layout(rect=[0, 0, 1, 0.95])
 
     # Save and display the plot
-    plt.savefig(f"{output_dir}/aligned_cost_savings_vs_events_up_to_15000.png")
+    # plt.savefig(f"{output_dir}/aligned_cost_savings_vs_events_up_to_15000.png")
     plt.show()
+
+
+def mean_saving(savings: dict[str, list[float]]) -> float:
+    flat_savings = []
+    for lst in savings.values():
+        flat_savings.extend(lst)
+    return mean(flat_savings)
 
 
 # Data for each subplot (replace with your actual data)
@@ -91,7 +99,7 @@ categories = [
 ]
 
 
-# query = "AND_ABC"
+query = "SEQ_ABC"
 dir = "/Users/krispian/Uni/bachelorarbeit/topologies_delayed_systematic_inflation"
 
 x0_values = {i: [] for i in nodes}
@@ -155,5 +163,6 @@ for k in x0_values.keys():
     print(f"strategy1: {x1_values[k]}")
     print(f"saving: {cost_savings[k]}")
 
+# print(f"Averages cost saving for {query}: {mean_saving(cost_savings)}")
 
 plot_aligned_line_chart(x1_values, cost_savings, dir)

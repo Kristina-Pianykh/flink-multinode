@@ -81,8 +81,12 @@ if __name__ == "__main__":
     print(f"130% of {part_event_rate}: {part_event_rate * 1.3}")
     print(f"150% of {part_event_rate}: {part_event_rate * 1.5}")
     print(f"200% of {part_event_rate}: {part_event_rate * 2.0}")
+    print(f"300% of {part_event_rate}: {part_event_rate * 3.0}")
+    print(f"400% of {part_event_rate}: {part_event_rate * 4.0}")
+    print(f"500% of {part_event_rate}: {part_event_rate * 5.0}")
+    print(f"1000% of {part_event_rate}: {part_event_rate * 10.0}")
 
-    ratios = [0.2, 0.5, 0.7, 1.0, 1.3, 1.5, 2.0]
+    ratios = [0.2, 0.5, 0.7, 1.0, 1.3, 1.5, 2.0, 3.0, 4.0, 5.0, 10.0]
     nonpart_events = set(event_rate_map.keys()).difference(
         set([ineq_inputs["partitioningInput"]])
     )

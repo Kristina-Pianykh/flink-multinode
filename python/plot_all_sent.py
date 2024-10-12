@@ -14,7 +14,7 @@ from parse_logs import (
 )
 
 
-def plot(df0, df1, output_dir: str, query: str, node_n: str):
+def plot(df0, df1, output_dir: str, query: str, node_n: str, inflation_factor: str):
     interval = 30
 
     # Round timestamps to the nearest n seconds to group events in n-second intervals
@@ -44,16 +44,11 @@ def plot(df0, df1, output_dir: str, query: str, node_n: str):
     # Plotting the total event count for both datasets
     plt.figure(figsize=(15, 6))  # Adjusted width for better readability
 
-    plt.plot(
-        df0.index, df0, label="Total Events (No Strategy)", marker="o", color="blue"
-    )
-    plt.plot(
-        df1.index, df1, label="Total Events (With Strategy)", marker="o", color="orange"
-    )
+    plt.plot(df0.index, df0, marker="o", color="blue")
+    plt.plot(df1.index, df1, marker="o", color="orange")
 
-    plt.title(f"Total Event Count Per {interval} Seconds")
-    plt.ylabel("Event Count")
-    plt.xlabel("Time (HH:MM:SS)")
+    plt.ylabel("Event Count Per 30 Sec", fontsize=28)
+    plt.xlabel("Time (HH:MM:SS)", fontsize=28)
 
     # Set x-axis major ticks to show each minute
     plt.gca().xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
@@ -72,16 +67,22 @@ def plot(df0, df1, output_dir: str, query: str, node_n: str):
         ticker.FuncFormatter(lambda x, _: format_func(x, _).strftime("%H:%M:%S"))
     )
 
-    plt.legend(title="Event Source")
+    # Increase the size of the ticks and labels
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+
+    # Ensure that x-axis ticks don't overlap by showing every second tick
+    for label in plt.gca().xaxis.get_ticklabels()[::2]:
+        label.set_visible(False)
+
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 
-    # Add a title to the entire plot
-    plt.suptitle(f"Node num: {node_n}, Query: {query}", fontsize=16)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-    plt.tight_layout(
-        rect=[0, 0, 1, 0.95]
-    )  # Adjust layout to make space for the suptitle
-    plt.savefig(f"{output_dir}/transmission_rates.png")
+    q_name = query.replace("(", "_").replace(")", "_")
+    plt.savefig(
+        f"{output_dir}/{q_name}{node_n}_transmission_rates_{inflation_factor}.png"
+    )
     # plt.show()
 
 
@@ -93,6 +94,15 @@ def main(
     node_n: str,
     events: Optional[list[str]],
 ):
+    inflation_factor = dir0.split("/")[-2].split("_")[-1]
+    print(inflation_factor)
+    assert inflation_factor
+    try:
+        int(inflation_factor)
+    except ValueError:
+        print(f"inflation_factor is not a number, got {inflation_factor}")
+        exit(1)
+
     res0: list[tuple[int, str, datetime]] = parse_logs(dir0)
     res1: list[tuple[int, str, datetime]] = parse_logs(dir1)
     # assert all(len(el[1]) == 1 for el in res0)
@@ -107,7 +117,10 @@ def main(
         df0 = df0[df0["event_type"].isin(events)]
         df1 = df1[df1["event_type"].isin(events)]
 
-    plot(df0, df1, output_dir, query, node_n)
+    # q_name = query.replace("(", "_").replace(")", "_")
+    # print(q_name)
+    # print(f"{output_dir}/{q_name}{node_n}_transmission_rates_{inflation_factor}.png")
+    plot(df0, df1, output_dir, query, node_n, inflation_factor)
 
 
 if __name__ == "__main__":

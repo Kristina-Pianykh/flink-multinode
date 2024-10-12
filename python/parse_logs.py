@@ -1,7 +1,6 @@
 import argparse
 import os
-from statistics import StatisticsError
-from statistics import mean, median
+from statistics import mean
 from datetime import datetime, timedelta
 
 
