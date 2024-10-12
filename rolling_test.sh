@@ -43,7 +43,7 @@ run() {
   poetry run python plot_all_sent.py \
       --dir0 $OUTPUT_DIR_NO_STRATEGY \
       --dir1 $OUTPUT_DIR_STRATEGY \
-      --output_dir $TRACE_DIR \
+      --output_dir $INPUT_DIR \
       --query $QUERY \
       --node_n $NODE_N \
       --events "A;B;C;${OP}(A, B)"
@@ -58,32 +58,36 @@ run() {
 }
 
 for i in $(ls $TOPOLOGY_BASE_DIR)
-# arr=(AND_ABC_9 AND_ABC_complex_8)
+# arr=(SEQ_ABC_9 SEQ_ABC_complex_5)
 # for i in "${arr[@]}"
 do
-  echo $i
-  OP=$(echo $i | awk -F_ '{print $1}')
-  QUERY=$(echo $i | awk -F_ '{print $1"("$2")"}')
-  echo $QUERY
-  NODE_N=$(echo $i | awk '{n=split($1,A,"_"); print A[n]}')
-  echo $NODE_N
+  if [[ -d ${TOPOLOGY_BASE_DIR}/${i} ]]; then
+    echo $i
+    OP=$(echo $i | awk -F_ '{print $1}')
+    QUERY=$(echo $i | awk -F_ '{print $1"("$2")"}')
+    echo $QUERY
+    NODE_N=$(echo $i | awk '{n=split($1,A,"_"); print A[n]}')
+    echo $NODE_N
 
-  TOPOLOGY_PATH="${TOPOLOGY_BASE_DIR}/${i}"
-  INPUT_DIR="${TOPOLOGY_PATH}/plans"
-  # echo $TOPOLOGY_PATH
-  # echo $INPUT_DIR
+    TOPOLOGY_PATH="${TOPOLOGY_BASE_DIR}/${i}"
+    INPUT_DIR="${TOPOLOGY_PATH}/plans"
+    # echo $TOPOLOGY_PATH
+    # echo $INPUT_DIR
 
-  for j in $(ls $INPUT_DIR | grep "trace_inflated_mix*")
-  do
-    TRACE_DIR="${INPUT_DIR}/${j}"
-    OUTPUT_DIR_NO_STRATEGY="${INPUT_DIR}/${j}/output_strategy_0"
-    OUTPUT_DIR_STRATEGY="${INPUT_DIR}/${j}/output_strategy_1"
-    # echo $TRACE_DIR
-    # echo $OUTPUT_DIR_NO_STRATEGY
-    # echo $OUTPUT_DIR_STRATEGY
-    run
+    for j in $(ls $INPUT_DIR | grep "trace_inflated_mix*")
+    do
+      TRACE_DIR="${INPUT_DIR}/${j}"
+      OUTPUT_DIR_NO_STRATEGY="${INPUT_DIR}/${j}/output_strategy_0"
+      OUTPUT_DIR_STRATEGY="${INPUT_DIR}/${j}/output_strategy_1"
+      # echo $TRACE_DIR
+      # echo $OUTPUT_DIR_NO_STRATEGY
+      # echo $OUTPUT_DIR_STRATEGY
+      run
 
-    # ls $TRACE_DIR
-    # test $? -eq 0 || "FAILURE"
-  done
+      # ls $TRACE_DIR
+      # test $? -eq 0 || "FAILURE"
+    done
+  else
+    echo "$i is not a directory"
+  fi
 done
